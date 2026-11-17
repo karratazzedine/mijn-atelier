@@ -478,3 +478,25 @@ const JOKES = [
 ];
 const PRAISE = ['Raak! Dat ging in galop! 🐎', 'Precies goed. Ik wapper met mijn manen van trots!', 'Ja! Jij bent vandaag op dreef.', 'Top gedaan! Mijn baret vloog er bijna af.', 'Helemaal goed! High-hoef! 🙌', 'Kijk jou nou! Weer eentje binnen.', 'Goed zo! Dit is kunst, en jij bent de kunstenaar.', 'Bam, goed! Zo doe je dat.'];
 const OOPS = ['Oeps, net niet. Geeft niks: van fouten word je slimmer dan van goede antwoorden.', 'Deze was een gemene. Kom, we zoeken samen uit waar het misging.', 'Niet goed, wél goed geprobeerd. Even kijken wat er gebeurde.', 'Foutje! Daar ben ik dol op, want nu kan ik je iets leren.', 'Hé, zelfs het beste springpaard tikt weleens een balk aan. Kijk even mee.'];
+
+/* ===== Uitlegfilmpjes van het YouTube-kanaal Wijzer over de Basisschool: id -> [seconden, titel] ===== */
+const VID = {
+  'qsAlM2o4E1c': [502, 'Getallen afronden'], 'NxwRgMM29_Q': [469, 'Kommagetallen vermenigvuldigen'], 'SpK5lVL8rCM': [150, 'Minsommen met kommagetallen'],
+  'HQpPDmSyT3Y': [408, 'Van procenten naar breuken'], 'PYVIS91pnEg': [672, 'Breuken in 7 stappen'], 'Asncx7_cPeI': [774, 'Metriek stelsel: inhoudsmaten'],
+  'AjyPazr3PO4': [1096, 'Metriek stelsel: lengtematen'], 'wpYpC1UKCyg': [118, 'Maten omrekenen: ezelsbruggetje'], 'HSvcc0uNxQ4': [935, 'Korting berekenen'],
+  '3O5puB-43ZI': [606, 'Omtrek berekenen'], 'ZdTYf27SnNA': [639, 'Oppervlakte berekenen'], 'zxkRDZq111g': [787, 'De verhoudingstabel'],
+  'CgY8Xn0yjrQ': [253, 'Gelijknamig maken van breuken'], 'Kf6w-zeZfgw': [175, 'Wat zijn kommagetallen?'], 'jTuSwkbM370': [496, 'Klokkijken: analoog naar digitaal'],
+  'ILpcOpAuHCU': [134, 'Breuken, kommagetallen, verhoudingen en procenten'], 'tvz3yPUFRmY': [339, 'Werkwoordspelling d of t'], 'RoymgdKweno': [617, 'Voltooid deelwoord'],
+  'iN2iJbhk8D0': [584, 'Persoonsvorm vinden op 3 manieren'], 'EK6sDcvkWFk': [521, 'Wat is het onderwerp in een zin?'], 'Riz75rOb_hQ': [167, 'Ontleden: een zin in zinsdelen verdelen'],
+  'yzTZPVu1tT0': [599, 'Wat is een zelfstandig naamwoord?'], 'xuU62E2HVLA': [321, 'Bijvoeglijk naamwoord'], 'uO6sBGxwRAs': [645, 'Wat is een werkwoord?'],
+  'BODVykxmSM8': [131, 'Redekundig en taalkundig ontleden'], 'OKUUbXBOkZM': [339, 'Wanneer gebruik je hoofdletters?'], 'OtRptQk0SSM': [370, 'Hoofdgedachte van een tekst vinden'],
+  'eNWKBtZZLBA': [625, 'Signaalwoorden bij begrijpend lezen'], 'ppEG5obSqWA': [415, 'Verwijswoorden in 4 stappen'], 'h8KXEH4ylgA': [588, 'Begrijpend lezen: samenvatten'],
+  '1Q08WXn3L44': [619, 'Woordenschat vergroten op 6 manieren']
+};
+Object.entries({ afronden: 'qsAlM2o4E1c', kommaKeer: 'NxwRgMM29_Q', kommaMin: 'SpK5lVL8rCM', procBreuk: 'HQpPDmSyT3Y', deelVan: 'PYVIS91pnEg', maten: 'Asncx7_cPeI', korting: 'HSvcc0uNxQ4', rechthoek: 'ZdTYf27SnNA', verhouding: 'zxkRDZq111g', breukOrde: 'CgY8Xn0yjrQ', plaatswaarde: 'Kf6w-zeZfgw', getallenlijn: 'Kf6w-zeZfgw', klok: 'jTuSwkbM370', eenOpDe: 'ILpcOpAuHCU', vereenvoudig: 'PYVIS91pnEg', geld: 'SpK5lVL8rCM', ww_tt: 'tvz3yPUFRmY', ww_vt: 'tvz3yPUFRmY', ww_vd: 'RoymgdKweno', ont_pv: 'iN2iJbhk8D0', ont_ow: 'EK6sDcvkWFk', ont_gez: 'Riz75rOb_hQ', ont_ws: 'BODVykxmSM8', tv_lees: 'OKUUbXBOkZM', lez_hoofd: 'OtRptQk0SSM', lez_verband: 'eNWKBtZZLBA', lez_info: 'h8KXEH4ylgA', wsch: '1Q08WXn3L44' }).forEach(([k, v]) => { SKILLS[k].v = v; });
+/* Sommige onderdelen hebben per vraag een preciezer filmpje */
+const vwrap = (id, f) => { const g = GEN[id]; GEN[id] = (l, c) => { const q = g(l, c), v = f(q); if (v) q.v = v; return q; }; };
+vwrap('maten', q => /liter/.test(q.prompt) ? 'Asncx7_cPeI' : /kg|gram/.test(q.prompt) ? 'wpYpC1UKCyg' : 'AjyPazr3PO4');
+vwrap('rechthoek', q => /<b>omtrek/.test(q.prompt) ? '3O5puB-43ZI' : 'ZdTYf27SnNA');
+vwrap('ont_ws', q => ({ 'zelfstandig naamwoord': 'yzTZPVu1tT0', 'bijvoeglijk naamwoord': 'xuU62E2HVLA', 'werkwoord': 'uO6sBGxwRAs' })[q.correctText]);
+vwrap('lez_verband', q => /verwijst|Waarover|Wat doen ze dan/.test(q.prompt) ? 'ppEG5obSqWA' : null);

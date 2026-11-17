@@ -6,7 +6,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 function def() { return { v: 1, setup: false, name: '', pin: '', ppin: '', mentor: 'Luna', theme: { pal: 'roze', accent: '', pattern: 'hartjes', font: 'rond' }, skills: {}, days: {}, review: [], recent: {}, stars: 0, paid: [], art: {}, qcount: 0 }; }
 function load() { try { const j = JSON.parse(localStorage.getItem(KEY)); if (j && j.v === 1) return Object.assign(def(), j); } catch (e) { } return def(); }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
-let S = load(), view = '', authed = false, parentOK = false, sess = null, cur = null, lastAct = 0, repWeek = 0, artColor = '#f0428f', jokeI = new Date().getDate();
+let vidUntil = 0, S = load(), view = '', authed = false, parentOK = false, sess = null, cur = null, lastAct = 0, repWeek = 0, artColor = '#f0428f', jokeI = new Date().getDate();
 
 const dkey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const EMPTY = { sec: 0, sk: {}, euro: false };
@@ -53,7 +53,8 @@ function confetti(em) { const f = $('#fx'); for (let i = 0; i < 36; i++) { const
 /* ===== Oefentijd tellen (alleen als ze echt bezig is) ===== */
 ['click', 'keydown', 'touchstart', 'input'].forEach(e => document.addEventListener(e, () => { lastAct = Date.now(); }, true));
 setInterval(() => {
-  if (view !== 'practice' || document.hidden || Date.now() - lastAct > 75000) return;
+  const vc = $('#vidclaim'); if (vc && cur && cur.vidT0 && vc.disabled) { const left = cur.vidNeed - Math.floor((Date.now() - cur.vidT0) / 1000); if (left > 0) vc.textContent = 'Kijk nog ' + left + ' seconden…'; else { vc.disabled = false; vc.textContent = '✔ Ik heb gekeken: geef me 3 sterren'; } }
+  if (view !== 'practice' || document.hidden || (Date.now() - lastAct > 75000 && Date.now() > vidUntil)) return;
   const d = day(); d.sec++;
   if (d.sec >= GOAL && !d.euro) { d.euro = true; save(); confetti(['💶', '🎉', '⭐', '🐎']); toast('15 minuten geoefend: je hebt € 1 verdiend! 🎉'); }
   if (d.sec % 5 === 0) save();
@@ -68,8 +69,9 @@ function chooseSkill() {
   let ids = all.filter(k => SKILLS[k].s === subj && !sess.last.includes(k)); if (!ids.length) ids = all.filter(k => SKILLS[k].s === subj);
   return wpick(ids, k => { const s = skill(k); return 1 + (s.q ? 2 * (1 - s.r / s.q) : 1) + (s.q < 3 ? 1.5 : 0); });
 }
-function pers(q) { const n = esc(S.name || 'Ster'), f = s => typeof s === 'string' ? s.split('{naam}').join(n) : s; ['prompt', 'context', 'steps', 'correctText'].forEach(k => { q[k] = f(q[k]); }); (q.options || []).forEach(o => { o.t = f(o.t); o.why = f(o.why); }); return q; }
+function pers(q) { const n = esc(S.name || 'Ster'), f = s => typeof s === 'string' ? s.split('{naam}').join(n) : s; ['prompt', 'context', 'steps', 'correctText'].forEach(k => { q[k] = f(q[k]); }); (q.options || []).forEach(o => { o.t = f(o.t); o.why = f(o.why); }); q.v = q.v || SKILLS[q.skill].v || null; return q; }
 function nextQ() {
+  vidUntil = 0;
   let id, item, rev = null, revanche = false;
   const inMode = s => sess.mode === 'mix' || sess.mode === 'fouten' || SKILLS[s].s === sess.mode;
   if (sess.revanche) { id = sess.revanche; sess.revanche = null; revanche = true; }
@@ -96,7 +98,7 @@ function answer(ok, why, given) {
     if (q.rev) S.review = S.review.filter(r => r !== q.rev);
     if (sk.run >= 4 && sk.lvl < 3) { sk.lvl++; sk.run = 0; cur.up = true; sess.ups.push(q.skill); confetti(['⭐', '🌟', '🦄']); }
   } else {
-    sk.run = Math.min(0, sk.run) - 1; sess.miss[q.skill] = 1;
+    sk.run = Math.min(0, sk.run) - 1; sess.miss[q.skill] = (sess.miss[q.skill] || 0) + 1;
     if (sk.run <= -2 && sk.lvl > 1) { sk.lvl--; sk.run = 0; }
     if (q.rev) q.rev.due = S.qcount + 4;
     else if (!S.review.some(r => r.skill === q.skill && r.item === q.item)) S.review.push({ skill: q.skill, item: q.item, due: S.qcount + 4 });
@@ -107,7 +109,7 @@ function answer(ok, why, given) {
 function parseNum(s) { s = String(s).trim().replace(/\s|€|%/g, ''); if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, ''); s = s.replace(',', '.'); return /^-?\d+(\.\d+)?$/.test(s) ? parseFloat(s) : NaN; }
 const LVL = ['', 'Veulen', 'Pony', 'Kampioen'];
 const lvIcons = l => '<span class="lv" title="Niveau ' + l + ': ' + LVL[l] + '">' + [1, 2, 3].map(i => '<span class="' + (i <= l ? '' : 'off') + '">🏅</span>').join('') + '</span>';
-const vidUrl = id => 'https://www.youtube.com/results?search_query=' + encodeURIComponent('Wijzer over de Basisschool ' + SKILLS[id].vid);
+const vidUrl = id => SKILLS[id].v ? 'https://www.youtube.com/watch?v=' + SKILLS[id].v : 'https://www.youtube.com/results?search_query=' + encodeURIComponent('Wijzer over de Basisschool ' + SKILLS[id].vid);
 
 /* ===== Schermen ===== */
 const V = {};
@@ -158,7 +160,8 @@ V.practice = () => {
     '<h4>🪄 Zo doe je het</h4><div class="why">' + (q.steps || 'Het goede antwoord is <b>' + q.correctText + '</b>.') + '</div>' +
     '<h4>💡 Zo maak je deze fout nooit meer</h4><div class="why">' + sk.trick + '</div>' +
     (q.retype ? '<h4>✍️ Typ het goede woord één keer over</h4><input class="inp wide" data-retype="' + esc(q.retype) + '" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + esc(q.retype) + '">' : '') +
-    '<p class="row" style="margin:14px 0 0"><button class="btn" data-act="next" id="nextb"' + (q.retype ? ' disabled' : '') + '>Ik snap het! Geef me een revanche 💪</button><a class="btn ghost sm" target="_blank" rel="noopener" href="' + vidUrl(q.skill) + '">🎬 Uitlegfilmpje</a></p></div>';
+    (q.v ? '<div class="vidch"><h4 style="margin-top:0">🎬 ' + esc(S.mentor) + '\'s uitdaging</h4><p>' + (sess.miss[q.skill] >= 2 ? '<b>Dit onderdeel ging nu al ' + sess.miss[q.skill] + ' keer mis.</b> Geen ramp, maar dan is het slim om eerst de uitleg te kijken. Daarna lukt de revanche vast wel!' : 'Durf jij de uitleg te kijken voordat je revanche neemt?') + ' Het filmpje <i>' + VID[q.v][1] + '</i> duurt ongeveer ' + Math.max(1, Math.round(VID[q.v][0] / 60)) + ' minuten. Kijk je het, dan krijg je <b>3 bonussterren</b> en telt de kijktijd mee voor je euro.</p><div id="vidbox"><button class="btn two" data-act="vid">▶ Ik neem de uitdaging aan</button></div></div>' : '') +
+    '<p class="row" style="margin:14px 0 0"><button class="btn' + (q.v && sess.miss[q.skill] >= 2 ? ' ghost sm' : '') + '" data-act="next" id="nextb"' + (q.retype ? ' disabled' : '') + '>' + (q.v && sess.miss[q.skill] >= 2 ? 'Verder zonder filmpje' : 'Ik snap het! Geef me een revanche 💪') + '</button>' + (q.v ? '' : '<a class="btn ghost sm" target="_blank" rel="noopener" href="' + vidUrl(q.skill) + '">🎬 Zoek een uitlegfilmpje</a>') + '</p></div>';
   return h + '</div>';
 };
 
@@ -218,10 +221,10 @@ V.atelier = () => { const nx = COLS.find(c => c[0] > S.stars); return head('🎨
 
 /* ===== Ouders ===== */
 function weekStats(off) {
-  const m = monday(off), days = [], sk = {}; let q = 0, r = 0, sec = 0, eur = 0;
-  for (let i = 0; i < 7; i++) { const d = new Date(m); d.setDate(m.getDate() + i); const rec = dayRO(dkey(d)), t = tot(rec); days.push({ d, sec: rec.sec, q: t.q, r: t.r, euro: rec.euro }); q += t.q; r += t.r; sec += rec.sec; if (rec.euro) eur++; for (const k in rec.sk) { const s = sk[k] || (sk[k] = { q: 0, r: 0 }); s.q += rec.sk[k].q; s.r += rec.sk[k].r; } }
+  const m = monday(off), days = [], sk = {}; let q = 0, r = 0, sec = 0, eur = 0, vid = 0;
+  for (let i = 0; i < 7; i++) { const d = new Date(m); d.setDate(m.getDate() + i); const rec = dayRO(dkey(d)), t = tot(rec); days.push({ d, sec: rec.sec, q: t.q, r: t.r, euro: rec.euro }); q += t.q; r += t.r; sec += rec.sec; if (rec.euro) eur++; vid += Object.values(rec.vid || {}).reduce((x, y) => x + y, 0); for (const k in rec.sk) { const s = sk[k] || (sk[k] = { q: 0, r: 0 }); s.q += rec.sk[k].q; s.r += rec.sk[k].r; } }
   const subj = {}; for (const k in sk) { if (!SKILLS[k]) continue; const s = subj[SKILLS[k].s] || (subj[SKILLS[k].s] = { q: 0, r: 0 }); s.q += sk[k].q; s.r += sk[k].r; }
-  return { m, days, sk, subj, q, r, sec, eur };
+  return { m, days, sk, subj, q, r, sec, eur, vid };
 }
 const fd = d => d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' });
 V.parent = () => {
@@ -236,9 +239,9 @@ V.parent = () => {
   let h = head('👨‍👩‍👧 Weekrapport', '<button class="btn ghost sm" data-act="plock">Vergrendel</button>') +
     '<div class="card"><div class="row sp noprint"><button class="btn ghost sm" data-act="wk" data-d="-1">← Vorige week</button><button class="btn ghost sm" data-act="wk" data-d="1"' + (repWeek >= 0 ? ' disabled' : '') + '>Volgende week →</button></div>' +
     '<h2 style="margin-top:12px">Week van ' + fd(w.m) + ' t/m ' + fd(end) + '</h2><p class="muted">Rapport van ' + esc(S.name) + ', groep 7</p>' +
-    '<div class="stats"><div class="stat"><b>' + w.days.filter(d => d.q).length + ' / 7</b>dagen geoefend</div><div class="stat"><b>' + Math.round(w.sec / 60) + ' min</b>oefentijd</div><div class="stat"><b>' + w.q + '</b>vragen</div><div class="stat"><b>' + pct(w.r, w.q) + '%</b>goed' + trend(w, pw) + '</div><div class="stat"><b>€ ' + w.eur + '</b>verdiend</div></div>';
+    '<div class="stats"><div class="stat"><b>' + w.days.filter(d => d.q).length + ' / 7</b>dagen geoefend</div><div class="stat"><b>' + Math.round(w.sec / 60) + ' min</b>oefentijd</div><div class="stat"><b>' + w.q + '</b>vragen</div><div class="stat"><b>' + pct(w.r, w.q) + '%</b>goed' + trend(w, pw) + '</div><div class="stat"><b>' + w.vid + '</b>uitlegfilmpjes gekeken</div><div class="stat"><b>€ ' + w.eur + '</b>verdiend</div></div>';
   h += !w.q ? '<p style="margin-top:14px">Deze week is er nog niet geoefend.</p>' : '<h3 style="margin-top:18px">In het kort</h3><ul>' + (strong ? '<li><b>Sterkste vak:</b> ' + SUBJ[strong].n + ' (' + pct(w.subj[strong].r, w.subj[strong].q) + '% goed).</li>' : '') +
-    (weak.length ? weak.map(k => '<li><b>Aandachtspunt:</b> ' + SKILLS[k].n + ' (' + (w.sk[k].q - w.sk[k].r) + ' van de ' + w.sk[k].q + ' fout). Tip om thuis te herhalen: <i>' + SKILLS[k].trick + '</i> <a href="' + vidUrl(k) + '" target="_blank" rel="noopener">🎬 uitlegfilmpje</a></li>').join('') : '<li>Geen fouten deze week. Tijd voor moeilijkere vragen: die komen vanzelf.</li>') +
+    (weak.length ? weak.map(k => '<li><b>Aandachtspunt:</b> ' + SKILLS[k].n + ' (' + (w.sk[k].q - w.sk[k].r) + ' van de ' + w.sk[k].q + ' fout). Tip om thuis te herhalen: <i>' + SKILLS[k].trick + '</i> <a href="' + vidUrl(k) + '" target="_blank" rel="noopener">🎬 uitlegfilmpje</a>' + (w.days.some(d => (dayRO(dkey(d.d)).vid || {})[k]) ? ' (deze week gekeken ✔)' : '') + '</li>').join('') : '<li>Geen fouten deze week. Tijd voor moeilijkere vragen: die komen vanzelf.</li>') +
     '<li>In de Foutenstal staan nu <b>' + S.review.length + '</b> onderdelen klaar om opnieuw te oefenen.</li></ul>';
   h += '</div><div class="card"><h3>Per dag</h3><div class="tablewrap"><table><tr><th>Dag</th><th class="n">Minuten</th><th class="n">Vragen</th><th class="n">Goed</th><th class="n">Euro</th></tr>' + w.days.map((d, i) => '<tr><td>' + dn[i] + ' ' + d.d.getDate() + '</td><td class="n">' + Math.floor(d.sec / 60) + '</td><td class="n">' + d.q + '</td><td class="n">' + (d.q ? pct(d.r, d.q) + '%' : '–') + '</td><td class="n">' + (d.euro ? '€ 1' : d.q ? 'nog ' + Math.max(1, Math.ceil((GOAL - d.sec) / 60)) + ' min te kort' : '–') + '</td></tr>').join('') + '</table></div></div>';
   h += '<div class="card"><h3>Per vak</h3><div class="tablewrap"><table><tr><th>Vak</th><th class="n">Vragen</th><th class="n">Goed deze week</th><th class="n">Vorige week</th><th>Niveau nu</th></tr>' + Object.keys(SUBJ).map(k => { const a = w.subj[k], b = pw.subj[k], ids = Object.keys(SKILLS).filter(s => SKILLS[s].s === k), lv = ids.reduce((x, s) => x + skill(s).lvl, 0) / ids.length; return '<tr><td>' + SUBJ[k].ic + ' ' + SUBJ[k].n + '</td><td class="n">' + (a ? a.q : 0) + '</td><td class="n">' + (a ? pct(a.r, a.q) + '%' + trend(a, b) : '–') + '</td><td class="n">' + (b ? pct(b.r, b.q) + '%' : '–') + '</td><td>' + lv.toFixed(1).replace('.', ',') + ' / 3 · ' + lvlTxt(lv) + '</td></tr>'; }).join('') + '</table></div>' +
@@ -267,6 +270,8 @@ const ACT = {
   next: () => nextQ(),
   ans: el => { const i = +el.dataset.i, o = cur.q.options[i]; answer(!!o.ok, o.why, i); },
   flash: () => { cur.phase = 'show'; render(); setTimeout(() => { if (cur && cur.phase === 'show') { cur.phase = 'type'; render(); } }, 3000); },
+  vid: () => { const q = cur.q, v = VID[q.v]; cur.vidT0 = Date.now(); cur.vidNeed = Math.min(90, Math.round(v[0] / 2)); vidUntil = Date.now() + v[0] * 1000; $('#vidbox').innerHTML = '<div class="vidframe"><iframe src="https://www.youtube-nocookie.com/embed/' + q.v + '?autoplay=1&rel=0" title="Uitlegfilmpje: ' + v[1] + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div><p style="margin:10px 0 0"><button class="btn two sm" id="vidclaim" data-act="vidclaim" disabled>Kijk nog ' + cur.vidNeed + ' seconden…</button></p>'; },
+  vidclaim: () => { const q = cur.q, d = day(); if (cur.vidDone) return; cur.vidDone = true; S.stars += 3; d.vid = d.vid || {}; d.vid[q.skill] = (d.vid[q.skill] || 0) + 1; save(); confetti(['⭐', '🎬', '🌟']); $('#vidclaim').outerHTML = '<b>Knap gedaan! +3 ⭐ Kijk het filmpje gerust af en neem daarna je revanche.</b>'; const b = $('#nextb'); if (b) { b.className = 'btn'; b.textContent = 'Ik snap het! Geef me een revanche 💪'; } },
   joke: () => { jokeI++; $('#joke').textContent = JOKES[jokeI % JOKES.length]; },
   pal: el => { S.theme.pal = el.dataset.k; S.theme.accent = ''; save(); applyTheme(); if (view === 'setup') { document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b === el)); } else render(); },
   noaccent: () => { S.theme.accent = ''; save(); applyTheme(); render(); },
