@@ -171,7 +171,7 @@ V.summary = () => {
   return '<div class="card center" style="margin-top:4vh">' + mentor(msg) + '<div class="stats" style="margin:20px 0"><div class="stat"><b>' + sess.n + '</b>vragen</div><div class="stat"><b>' + sess.right + '</b>goed</div><div class="stat"><b>' + m + ' min</b>vandaag</div><div class="stat"><b>' + (d.euro ? '€ 1 ✔' : 'nog ' + Math.max(1, Math.ceil((GOAL - d.sec) / 60)) + ' min') + '</b>' + (d.euro ? 'verdiend' : 'tot je euro') + '</div></div>' +
     (sess.ups.length ? '<p>🌟 <b>Niveau omhoog</b> bij: ' + sess.ups.map(s => SKILLS[s].n).join(', ') + '</p>' : '') +
     (miss.length ? '<p>🧹 <b>Nog even oefenen:</b> ' + miss.map(s => SKILLS[s].n).join(', ') + '. Die komen vanzelf terug.</p>' : '') +
-    '<p class="row" style="justify-content:center"><button class="btn" data-act="go" data-v="home">Naar mijn atelier</button>' + (d.euro ? '' : '<button class="btn two" data-act="start" data-m="mix">Nog even door</button>') + '<button class="btn ghost" data-act="go" data-v="atelier">🎨 Kleuren</button></p></div>';
+    '<p class="row" style="justify-content:center"><button class="btn" data-act="go" data-v="home">Naar mijn atelier</button>' + (d.euro ? '' : '<button class="btn two" data-act="start" data-m="mix">Nog even door</button>') + '<button class="btn ghost" data-act="go" data-v="atelier">🎨 Kleuren</button></p>' + (sess.n >= 5 ? '<p><button class="btn two big" data-act="game">🏇 Speel de hindernisbaan</button></p>' : '<p class="muted">Maak minstens 5 vragen, dan mag je de hindernisbaan spelen.</p>') + '</div>';
 };
 
 function badges() {
@@ -219,6 +219,66 @@ V.atelier = () => { const nx = COLS.find(c => c[0] > S.stars); return head('🎨
   '<div class="cols">' + COLS.map(c => c[0] > S.stars ? '<button class="col-b lock" disabled title="Nog ' + (c[0] - S.stars) + ' sterren">⭐' + c[0] + '</button>' : '<button class="col-b' + (artColor === c[1] ? ' on' : '') + '" data-act="col" data-c="' + c[1] + '" style="background:' + (c[1] === 'rainbow' ? 'linear-gradient(90deg,#ff5f6d,#ffd23f,#7bd88f,#6ec6ff,#a66bff)' : c[1]) + '" aria-label="kleur"></button>').join('') + '</div>' +
   '<div class="easel">' + scene() + '</div><p style="margin:14px 0 0"><button class="btn ghost sm" data-act="artclear">🧽 Opnieuw beginnen</button></p></div>'; };
 
+
+/* ===== Beloningsspel: de hindernisbaan ===== */
+let G = null;
+V.game = () => '<div class="card center" style="margin-top:2vh">' + mentor((sess && sess.resume ? 'Tien vragen gedaan, tijd voor een pauze! ' : 'Goed gewerkt, je hebt een spelletje verdiend! ') + 'Spring over de hindernissen en pak de sterren. <b>Tik op het spel</b> of druk op de <b>spatiebalk</b> om te springen.', true) +
+  '<canvas id="gc" width="800" height="320" aria-label="Hindernisbaan-spel"></canvas><div class="row" style="justify-content:center;margin-top:12px"><span class="pill">⭐ <span id="gsc">0</span></span><span class="pill">💗 <span id="glv">3</span></span><span class="pill">⏱ <span id="gtm">45</span></span><span class="pill">🏆 record ' + (S.hi || 0) + '</span></div>' +
+  '<div id="gend" class="row" style="justify-content:center;margin-top:14px"><button class="btn ghost sm" data-act="gamedone">Sla het spel over</button></div><p class="muted">Het spel is een pauze: de oefenklok staat even stil.</p></div>';
+function jump() { if (G && !G.over && G.y === 0) G.vy = -13.5; }
+function startGame() {
+  const cv = $('#gc'); if (!cv) return; const cx = cv.getContext('2d'), cs = getComputedStyle(document.documentElement), col = k => cs.getPropertyValue('--' + k).trim();
+  const C = { bg: col('bg'), soft: col('soft'), acc: col('accent'), acc2: col('accent2'), ink: col('ink'), card: col('card') };
+  const g = G = { y: 0, vy: 0, obs: [], stars: [], score: 0, lives: 3, dist: 0, nextObs: 500, nextStar: 300, inv: 0, over: false, t0: performance.now(), last: performance.now(), left: 45 };
+  cv.onpointerdown = e => { e.preventDefault(); jump(); };
+  const GY = 262, PX = 120;
+  function pony(leg) {
+    const by = GY - 44 + g.y; cx.save(); if (g.inv > 0 && Math.floor(g.inv / 5) % 2) cx.globalAlpha = .35;
+    cx.strokeStyle = '#d9b48f'; cx.lineWidth = 8; cx.lineCap = 'round';
+    [[-20, 1], [-8, -1], [14, 1], [26, -1]].forEach(l => { const s = g.y < 0 ? 10 * l[1] : Math.sin(leg + l[1]) * 12 * l[1]; cx.beginPath(); cx.moveTo(PX + l[0], by + 12); cx.lineTo(PX + l[0] + s, by + 42); cx.stroke(); });
+    cx.fillStyle = C.acc; cx.beginPath(); cx.moveTo(PX - 34, by - 6); cx.quadraticCurveTo(PX - 66, by + 2 + Math.sin(leg) * 4, PX - 52, by + 34); cx.quadraticCurveTo(PX - 46, by + 10, PX - 30, by + 6); cx.fill();
+    cx.fillStyle = '#f6d9b8'; cx.beginPath(); cx.ellipse(PX, by, 38, 22, 0, 0, 7); cx.fill();
+    cx.beginPath(); cx.moveTo(PX + 18, by - 12); cx.lineTo(PX + 38, by - 46); cx.lineTo(PX + 56, by - 34); cx.lineTo(PX + 36, by + 4); cx.fill();
+    cx.beginPath(); cx.ellipse(PX + 54, by - 40, 20, 12, .35, 0, 7); cx.fill();
+    cx.beginPath(); cx.moveTo(PX + 40, by - 50); cx.lineTo(PX + 42, by - 66); cx.lineTo(PX + 52, by - 52); cx.fill();
+    cx.fillStyle = C.acc; cx.beginPath(); cx.moveTo(PX + 20, by - 14); cx.quadraticCurveTo(PX + 18, by - 44, PX + 40, by - 56); cx.quadraticCurveTo(PX + 36, by - 34, PX + 34, by - 8); cx.fill();
+    cx.fillStyle = C.acc2; cx.beginPath(); cx.ellipse(PX + 46, by - 60, 15, 6, -.3, 0, 7); cx.fill();
+    cx.fillStyle = '#3b2a3a'; cx.beginPath(); cx.arc(PX + 58, by - 43, 3, 0, 7); cx.fill();
+    cx.fillStyle = C.acc2; cx.beginPath(); cx.ellipse(PX - 2, by - 14, 16, 8, 0, Math.PI, 0); cx.fill(); cx.restore();
+  }
+  function frame(now) {
+    if (G !== g || view !== 'game') return;
+    const k = Math.min(3, (now - g.last) / 16.67); g.last = now;
+    if (!g.over) {
+      const sp = (5 + (now - g.t0) / 9000) * k; g.dist += sp; g.left = Math.max(0, 45 - (now - g.t0) / 1000);
+      g.vy += .65 * k; g.y = Math.min(0, g.y + g.vy * k); if (g.y === 0) g.vy = 0; if (g.inv > 0) g.inv -= k;
+      if (g.dist > g.nextObs) { g.obs.push({ x: 840, h: 30 + Math.random() * 26, hit: false, done: false }); g.nextObs = g.dist + 330 + Math.random() * 300; }
+      if (g.dist > g.nextStar) { g.stars.push({ x: 840, y: GY - 70 - Math.random() * 90 }); g.nextStar = g.dist + 200 + Math.random() * 260; }
+      g.obs.forEach(o => { o.x -= sp; if (!o.hit && !o.done && o.x < PX + 40 && o.x + 20 > PX - 30 && GY + g.y > GY - o.h + 8) { o.hit = true; if (g.inv <= 0) { g.lives--; g.inv = 70; } } if (!o.hit && !o.done && o.x + 20 < PX - 30) { o.done = true; g.score++; } });
+      g.stars.forEach(s => { s.x -= sp; if (!s.got && Math.abs(s.x - PX - 10) < 44 && Math.abs(s.y - (GY - 40 + g.y)) < 46) { s.got = true; g.score += 2; } });
+      g.obs = g.obs.filter(o => o.x > -40); g.stars = g.stars.filter(s => s.x > -40 && !s.got);
+      if (g.lives <= 0 || g.left <= 0) endGame(g);
+      $('#gsc').textContent = g.score; $('#glv').textContent = Math.max(0, g.lives); $('#gtm').textContent = Math.ceil(g.left);
+    }
+    cx.fillStyle = C.bg; cx.fillRect(0, 0, 800, 320);
+    cx.fillStyle = C.soft; for (let i = 0; i < 4; i++) { const hx = ((i * 290 - g.dist * .25) % 1160 + 1160) % 1160 - 180; cx.beginPath(); cx.ellipse(hx, GY + 6, 170, 80 + i % 2 * 30, 0, Math.PI, 0); cx.fill(); }
+    cx.fillStyle = C.card; for (let i = 0; i < 3; i++) { const wx = ((i * 330 - g.dist * .12) % 990 + 990) % 990 - 90; cx.beginPath(); cx.ellipse(wx, 50 + i * 22, 44, 15, 0, 0, 7); cx.ellipse(wx + 30, 42 + i * 22, 28, 14, 0, 0, 7); cx.fill(); }
+    cx.fillStyle = C.acc2; cx.globalAlpha = .28; cx.fillRect(0, GY + 4, 800, 60); cx.globalAlpha = 1;
+    cx.fillStyle = C.ink; for (let i = 0; i < 14; i++) { const gx = ((i * 64 - g.dist) % 896 + 896) % 896 - 40; cx.fillRect(gx, GY + 18 + i % 3 * 10, 16, 3); }
+    g.obs.forEach(o => { cx.globalAlpha = o.hit ? .35 : 1; cx.fillStyle = C.ink; cx.fillRect(o.x, GY - o.h, 5, o.h + 4); cx.fillRect(o.x + 17, GY - o.h, 5, o.h + 4); cx.fillStyle = C.acc; cx.fillRect(o.x - 3, GY - o.h + 4, 28, 6); cx.fillStyle = C.card; cx.fillRect(o.x - 3, GY - o.h + 16, 28, 6); cx.globalAlpha = 1; });
+    cx.font = '30px serif'; cx.textAlign = 'center'; g.stars.forEach(s => cx.fillText('⭐', s.x, s.y + Math.sin(now / 200 + s.x) * 4));
+    pony(g.dist / 14);
+    if (g.over) { cx.fillStyle = C.ink; cx.globalAlpha = .55; cx.fillRect(0, 0, 800, 320); cx.globalAlpha = 1; cx.fillStyle = '#fff'; cx.font = '800 44px ' + (cs.getPropertyValue('--hf') || 'sans-serif'); cx.fillText(g.lives > 0 ? 'Finish! ' + g.score + ' punten' : 'Oeps! ' + g.score + ' punten', 400, 150); cx.font = '700 24px sans-serif'; cx.fillText(g.rec ? 'Nieuw record! 🏆' : 'Record: ' + (S.hi || 0), 400, 196); return; }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+function endGame(g) {
+  g.over = true; if (g.score > (S.hi || 0)) { S.hi = g.score; g.rec = true; save(); confetti(['🏆', '⭐', '🐎']); }
+  sess.plays = (sess.plays || 0) + 1;
+  $('#gend').innerHTML = (sess.plays < 2 ? '<button class="btn two" data-act="gameagain">Nog één keer!</button>' : '') + '<button class="btn" data-act="gamedone">' + (sess.resume ? 'Verder met oefenen →' : 'Klaar') + '</button>';
+}
+
 /* ===== Ouders ===== */
 function weekStats(off) {
   const m = monday(off), days = [], sk = {}; let q = 0, r = 0, sec = 0, eur = 0, vid = 0;
@@ -262,12 +322,16 @@ function render() {
   $('#app').innerHTML = V[view]();
   if (view === 'practice') { const f = cur.done ? ($('[data-retype]') || $('#nextb')) : $('.inp'); if (f) f.focus(); if (cur.done) { const fb = $('.fb'); if (fb && fb.scrollIntoView) fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } }
   else window.scrollTo(0, 0);
+  if (view === 'game') startGame(); else G = null;
 }
 const ACT = {
   go: el => { view = el.dataset.v; if (view !== 'parent') parentOK = false; render(); },
   start: el => start(el.dataset.m),
   stop: () => { save(); view = 'summary'; render(); },
-  next: () => nextQ(),
+  next: () => { if (sess.n - (sess.gameAt || 0) >= 10) { sess.gameAt = sess.n; sess.resume = true; sess.plays = 0; vidUntil = 0; view = 'game'; render(); } else nextQ(); },
+  game: () => { sess.resume = false; sess.plays = 0; view = 'game'; render(); },
+  gameagain: () => render(),
+  gamedone: () => { if (sess.resume) { sess.resume = false; view = 'practice'; lastAct = Date.now(); nextQ(); } else { view = 'summary'; render(); } },
   ans: el => { const i = +el.dataset.i, o = cur.q.options[i]; answer(!!o.ok, o.why, i); },
   flash: () => { cur.phase = 'show'; render(); setTimeout(() => { if (cur && cur.phase === 'show') { cur.phase = 'type'; render(); } }, 3000); },
   vid: () => { const q = cur.q, v = VID[q.v]; cur.vidT0 = Date.now(); cur.vidNeed = Math.min(90, Math.round(v[0] / 2)); vidUntil = Date.now() + v[0] * 1000; $('#vidbox').innerHTML = '<div class="vidframe"><iframe src="https://www.youtube-nocookie.com/embed/' + q.v + '?autoplay=1&rel=0" title="Uitlegfilmpje: ' + v[1] + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div><p style="margin:10px 0 0"><button class="btn two sm" id="vidclaim" data-act="vidclaim" disabled>Kijk nog ' + cur.vidNeed + ' seconden…</button></p>'; },
@@ -313,9 +377,10 @@ document.addEventListener('change', e => {
   const rd = new FileReader(); rd.onload = () => { try { const j = JSON.parse(rd.result); if (j.v !== 1 || !j.days) throw 0; if (confirm('De huidige voortgang vervangen door deze reservekopie?')) { S = Object.assign(def(), j); save(); applyTheme(); render(); toast('Reservekopie teruggezet.'); } } catch (x) { toast('Dit bestand is geen geldige reservekopie.'); } }; rd.readAsText(e.target.files[0]);
 });
 document.addEventListener('keydown', e => {
+  if (view === 'game') { if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); jump(); } return; }
   if (view !== 'practice' || !cur) return;
   if (!cur.done && cur.q.type === 'mc' && !e.metaKey && !e.ctrlKey) { const i = 'abcd'.indexOf(e.key.toLowerCase()), j = i >= 0 ? i : '1234'.indexOf(e.key); if (j >= 0 && j < cur.q.options.length) { e.preventDefault(); const o = cur.q.options[j]; answer(!!o.ok, o.why, j); } }
-  else if (cur.done && e.key === 'Enter' && e.target.dataset.retype != null) { const b = $('#nextb'); if (b && !b.disabled) nextQ(); }
+  else if (cur.done && e.key === 'Enter' && e.target.dataset.retype != null) { const b = $('#nextb'); if (b && !b.disabled) ACT.next(); }
 });
 window.addEventListener('beforeunload', save);
 applyTheme(); render();
