@@ -20,7 +20,7 @@ function mcq(skill, prompt, correct, wrongs, o) {
 function inq(skill, prompt, answer, o) { return Object.assign({ skill, type: 'num', prompt, answer, correctText: U.nl(answer) }, o || {}); }
 function pickItem(n, ctx) {
   if (ctx && ctx.id != null && ctx.id < n) return ctx.id;
-  const rec = (ctx && ctx.recent) || []; let c = [];
+  const rec = ((ctx && ctx.recent) || []).slice(-Math.max(1, Math.floor(n * 0.75))); let c = [];
   for (let i = 0; i < n; i++) if (!rec.includes(i)) c.push(i);
   if (!c.length) for (let i = 0; i < n; i++) if (i !== rec[rec.length - 1]) c.push(i);
   return U.pick(c);
@@ -342,7 +342,7 @@ GEN.ww_vt = (l, ctx) => {
   return mcq('ww_vt', 'Vul de goede vorm in van ' + B(v[0]) + ' (verleden tijd).<span class="sent">' + U.pick(['Gisteren', 'Vorige week', 'Vanochtend', 'Vorig jaar']) + ' <i>…</i> ' + who + ' ' + v[3] + '.</span>', ans, wr, { item: i, retype: ans, steps: 'Stap 1: de stam is "' + st + '". Stap 2: ' + kofTxt(v) + ' Stap 3: stam + ' + (v[2] ? 'te' : 'de') + n + ' = ' + B(ans) + '.' });
 };
 GEN.ww_vd = (l, ctx) => {
-  const ok = VVT.map((v, i) => i).filter(i => !VVT[i][4]); let i = (ctx && ctx.id != null && ok.includes(ctx.id)) ? ctx.id : U.pick(ok.filter(x => !((ctx && ctx.recent) || []).includes(x)).concat(ok.slice(0, 1)));
+  const ok = VVT.map((v, i) => i).filter(i => !VVT[i][4]); let i = (ctx && ctx.id != null && ok.includes(ctx.id)) ? ctx.id : (() => { const rec = ((ctx && ctx.recent) || []).filter(x => ok.includes(x)).slice(-Math.floor(ok.length * 0.75)), c = ok.filter(x => !rec.includes(x)); return U.pick(c.length ? c : ok); })();
   const v = VVT[i], st = v[1], dt = /[dt]$/.test(st), ans = 'ge' + st + (dt ? '' : v[2] ? 't' : 'd'), lang = 'de ' + ans + 'e …';
   const wr = dt ? [{ t: 'ge' + st + 't', why: 'Een voltooid deelwoord eindigt nooit op -dt of -tt. De stam "' + st + '" eindigt al op een ' + st.slice(-1) + ', daar komt niets meer achter.' }, { t: 'ge' + st.slice(0, -1) + (st.endsWith('d') ? 't' : 'd'), why: 'De laatste letter van de stam blijft staan. Stam = "' + st + '", dus het deelwoord eindigt ook op een ' + st.slice(-1) + '.' }]
     : [{ t: 'ge' + st + (v[2] ? 'd' : 't'), why: 'Je koos de verkeerde eindletter. ' + kofTxt(v) + ' Dus een ' + (v[2] ? 't' : 'd') + '. Je kunt het ook horen als je het langer maakt: "' + lang + '".' }, { t: 'ge' + st + (v[2] ? 'dt' : 'dt'), why: 'Een voltooid deelwoord eindigt nooit op -dt. Het is een t óf een d.' }];
@@ -351,7 +351,7 @@ GEN.ww_vd = (l, ctx) => {
 
 /* ===== Taal en ontleden ===== */
 const ZIN = [[['{naam}', 'borstelt', 'elke ochtend', 'haar pony'], 1, 0], [['Morgen', 'gaat', 'de hele klas', 'naar het museum'], 1, 2], [['In de wei', 'staan', 'drie bruine paarden'], 1, 2], [['De schilder', 'mengt', 'rood en wit', 'tot roze'], 1, 0], [['Gisteren', 'won', 'mijn zus', 'de eerste prijs'], 1, 2], [['Na de les', 'krijgt', 'het veulen', 'een wortel'], 1, 2], [['Onze juf', 'heeft', 'een prachtig schilderij', 'gemaakt'], 1, 0], [['Elke zaterdag', 'rijden', 'wij', 'door het bos'], 1, 2], [['De oude hoefsmid', 'maakt', 'nieuwe hoefijzers'], 1, 0], [['Vanmiddag', 'tekenen', 'de kinderen', 'een paard'], 1, 2], [['Het witte paard', 'springt', 'over de hoge hindernis'], 1, 0], [['Waarom', 'hinnikt', 'die pony', 'zo hard'], 1, 2], [['Mijn opa', 'heeft', 'vroeger', 'op een boerderij', 'gewoond'], 1, 0], [['Op het doek', 'verschijnt', 'langzaam', 'een kleurrijke vlinder'], 1, 3], [['Volgende week', 'begint', 'de tekenwedstrijd'], 1, 2], [['Zachtjes', 'aait', 'het meisje', 'de neus van het paard'], 1, 2]];
-const zinTxt = z => z[0].join(' ') + (z[0][0] === 'Waarom' ? '?' : '.');
+const zinTxt = z => z[0].join(' ') + (/^(Waarom|Hoe|Wanneer|Wie|Wat|Waar)\b/.test(z[0][0]) ? '?' : '.');
 GEN.ont_pv = (l, ctx) => {
   const i = pickItem(ZIN.length, ctx), z = ZIN[i], pv = z[0][z[1]];
   const wr = z[0].map((c, j) => j === z[1] ? null : { t: c, why: (j === z[0].length - 1 && /^ge/.test(c)) ? '"' + c + '" is wel een werkwoord, maar het is het voltooid deelwoord. Zet de zin maar in een andere tijd: "' + c + '" verandert niet, "' + pv + '" wel.' : j === z[2] ? '"' + c + '" is het onderwerp: wie of wat iets doet. De persoonsvorm is het werkwoord dat verandert als je de tijd verandert.' : 'Zet de zin in een andere tijd. "' + c + '" blijft precies hetzelfde, dus dat is niet de persoonsvorm.' }).filter(Boolean);

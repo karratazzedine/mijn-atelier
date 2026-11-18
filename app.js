@@ -102,7 +102,7 @@ function nextQ() {
     if (rev) { id = rev.skill; item = rev.item; } else id = chooseSkill();
   }
   const sk = skill(id), q = pers(GEN[id](sk.lvl, { id: item, recent: S.recent[id] || [] }));
-  if (q.item != null) { const r = S.recent[id] || (S.recent[id] = []); r.push(q.item); if (r.length > 12) r.shift(); }
+  if (q.item != null) { const r = S.recent[id] || (S.recent[id] = []); r.push(q.item); if (r.length > 80) r.shift(); }
   q.rev = rev; q.revanche = revanche;
   cur = { q, done: false, phase: q.type === 'flash' ? 'ready' : 'ask' };
   sess.last.push(id); if (sess.last.length > 3) sess.last.shift(); sess.lastSubj = SKILLS[id].s;
