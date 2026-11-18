@@ -3,7 +3,7 @@
 const KEY = 'atelier-v1', GOAL = 900; // 900 seconden = 15 minuten
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-function def() { return { v: 1, setup: false, name: '', pin: '', ppin: '', mentor: 'Luna', theme: { pal: 'roze', accent: '', pattern: 'hartjes', font: 'rond' }, skills: {}, days: {}, review: [], recent: {}, stars: 0, paid: [], art: {}, qcount: 0 }; }
+function def() { return { v: 1, setup: false, name: '', pin: '', ppin: '', mentor: 'Luna', theme: { pal: 'roze', accent: '', pattern: 'hartjes', font: 'rond' }, skills: {}, days: {}, review: [], recent: {}, stars: 0, paid: [], art: {}, qcount: 0, spent: 0, shop: null, coupons: [], acc: [], wear: '', bonus: { wd: 5, wa: 2, ka: 5 }, blog: [] }; }
 function load() { try { const j = JSON.parse(localStorage.getItem(KEY)); if (j && j.v === 1) return Object.assign(def(), j); } catch (e) { } return def(); }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
 let vidUntil = 0, S = load(), view = '', authed = false, parentOK = false, sess = null, cur = null, lastAct = 0, repWeek = 0, artColor = '#f0428f', jokeI = new Date().getDate();
@@ -17,7 +17,27 @@ const skill = id => S.skills[id] || (S.skills[id] = { lvl: 1, run: 0, q: 0, r: 0
 const pct = (r, q) => q ? Math.round(100 * r / q) : 0;
 function monday(off = 0) { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7 + 7 * off); return d; }
 function streak() { let n = 0; const d = new Date(); d.setHours(12); if (!tot(dayRO(dkey(d))).q) d.setDate(d.getDate() - 1); while (tot(dayRO(dkey(d))).q) { n++; d.setDate(d.getDate() - 1); } return n; }
-const earned = () => Object.values(S.days).filter(d => d.euro).length;
+const earned = () => Object.values(S.days).filter(d => d.euro).length + S.blog.reduce((a, b) => a + b.amt, 0);
+const sbal = () => S.stars - (S.spent || 0);
+const SHOP0 = [{ ic: '🌙', t: 'Een half uur later naar bed', cost: 50, val: '30 minuten' }, { ic: '🍦', t: 'Samen een ijsje halen', cost: 60, val: '€ 2,50' }, { ic: '🍝', t: 'Jij kiest het avondeten', cost: 70, val: '1 avond' }, { ic: '🎬', t: 'Filmavond: jij kiest de film', cost: 80, val: '1 avond' }, { ic: '🎨', t: 'Nieuw teken- of knutselspul', cost: 200, val: '€ 7,50' }, { ic: '🐴', t: 'Een ponyrit of bezoek aan de manege', cost: 400, val: '€ 15' }];
+const shop = () => S.shop || (S.shop = JSON.parse(JSON.stringify(SHOP0)));
+const ACCS = [['strik', '🎀', 'Strik', 20], ['hoed', '🎩', 'Hoge hoed', 25], ['bril', '🕶️', 'Zonnebril', 30], ['krans', '🌸', 'Bloemenkrans', 35], ['kroon', '👑', 'Kroon', 40], ['hoorn', '🦄', 'Eenhoorn-hoorn', 60]];
+function wearSVG() {
+  const beret = '<ellipse cx="50" cy="24" rx="25" ry="10" fill="var(--accent2)" transform="rotate(-14 50 24)"/><circle cx="46" cy="13" r="3.5" fill="var(--accent2)"/>';
+  return ({
+    strik: beret + '<path d="M60 111 L43 102 L43 120Z M60 111 L77 102 L77 120Z" fill="var(--accent2)"/><circle cx="60" cy="111" r="4.5" fill="var(--accent)"/>',
+    hoed: '<rect x="43" y="3" width="34" height="25" rx="3" fill="#3b2a3a"/><rect x="43" y="19" width="34" height="6" fill="var(--accent)"/><rect x="34" y="26" width="52" height="7" rx="3.5" fill="#3b2a3a"/>',
+    bril: beret + '<rect x="36" y="56" width="21" height="15" rx="6" fill="#2a2030"/><rect x="63" y="56" width="21" height="15" rx="6" fill="#2a2030"/><path d="M57 62h6" stroke="#2a2030" stroke-width="3"/><path d="M40 60l5-2M67 60l5-2" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>',
+    krans: [[38, 34, '#ff8fc7'], [48, 27, '#ffd23f'], [60, 24, '#b57bff'], [72, 27, '#7bd88f'], [82, 34, '#ff8fc7']].map(c => '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="7" fill="' + c[2] + '"/><circle cx="' + c[0] + '" cy="' + c[1] + '" r="2.5" fill="#fff"/>').join(''),
+    kroon: '<path d="M39 32 L43 9 L52 22 L60 5 L68 22 L77 9 L81 32Z" fill="#ffd23f" stroke="#c9a227" stroke-width="2" stroke-linejoin="round"/><circle cx="60" cy="24" r="3" fill="var(--accent)"/><circle cx="48" cy="26" r="2.2" fill="var(--accent2)"/><circle cx="72" cy="26" r="2.2" fill="var(--accent2)"/>',
+    hoorn: '<path d="M60 0 L52 32 L68 32Z" fill="#ffd23f" stroke="#c9a227" stroke-width="2" stroke-linejoin="round"/><path d="M55 22l9-4M56 14l6-3" stroke="#c9a227" stroke-width="2"/>'
+  })[S.wear] || beret;
+}
+function checkBonuses() {
+  const has = k => S.blog.some(b => b.key === k), add = (key, amt, why) => { S.blog.push({ key, amt, why, d: dkey() }); save(); confetti(['💶', '🎉', '🏆']); toast(why + ': € ' + amt + ' extra in je spaarpot! 🎉'); };
+  [0, -1].forEach(o => { const w = weekStats(o), k = 'w' + dkey(w.m); if (S.bonus.wa > 0 && w.eur >= S.bonus.wd && !has(k)) add(k, S.bonus.wa, 'Weekbonus (' + S.bonus.wd + ' dagen geoefend)'); });
+  Object.keys(SUBJ).forEach(s => { const ids = Object.keys(SKILLS).filter(k => SKILLS[k].s === s); if (S.bonus.ka > 0 && ids.every(k => skill(k).lvl === 3) && !has('k-' + s)) add('k-' + s, S.bonus.ka, 'Kampioenbonus ' + SUBJ[s].n); });
+}
 const paidOut = () => S.paid.reduce((a, p) => a + p.amt, 0);
 const wpick = (arr, wf) => { const ws = arr.map(wf), t = ws.reduce((a, b) => a + b, 0); let r = Math.random() * t; for (let i = 0; i < arr.length; i++) { r -= ws[i]; if (r <= 0) return arr[i]; } return arr[arr.length - 1]; };
 
@@ -40,7 +60,7 @@ function applyTheme() {
   document.body.className = t.font === 'sier' ? 'f-sier' : t.font === 'strak' ? 'f-strak' : '';
 }
 function mentorSVG() {
-  return '<svg viewBox="0 0 120 120" aria-hidden="true"><path d="M88 42 Q110 62 96 100 Q92 74 84 62Z" fill="var(--accent)"/><path d="M36 44 L29 16 L50 34Z" fill="#f3cfa9"/><path d="M84 44 L91 16 L70 34Z" fill="#f3cfa9"/><ellipse cx="60" cy="66" rx="31" ry="34" fill="#f6d9b8"/><ellipse cx="60" cy="92" rx="21" ry="15" fill="#fdeedd"/><path d="M40 34 Q60 12 80 34 Q72 30 68 46 Q60 32 52 46 Q48 30 40 34Z" fill="var(--accent)"/><circle cx="47" cy="64" r="6" fill="#3b2a3a"/><circle cx="73" cy="64" r="6" fill="#3b2a3a"/><circle cx="49" cy="62" r="2" fill="#fff"/><circle cx="75" cy="62" r="2" fill="#fff"/><circle cx="38" cy="78" r="6" fill="#ff9ec4" opacity=".6"/><circle cx="82" cy="78" r="6" fill="#ff9ec4" opacity=".6"/><ellipse cx="53" cy="92" rx="2.4" ry="3.2" fill="#c79a78"/><ellipse cx="67" cy="92" rx="2.4" ry="3.2" fill="#c79a78"/><path d="M51 100 Q60 107 69 100" stroke="#8a5a44" stroke-width="2.5" fill="none" stroke-linecap="round"/><ellipse cx="50" cy="24" rx="25" ry="10" fill="var(--accent2)" transform="rotate(-14 50 24)"/><circle cx="46" cy="13" r="3.5" fill="var(--accent2)"/></svg>';
+  return '<svg viewBox="0 0 120 120" aria-hidden="true"><path d="M88 42 Q110 62 96 100 Q92 74 84 62Z" fill="var(--accent)"/><path d="M36 44 L29 16 L50 34Z" fill="#f3cfa9"/><path d="M84 44 L91 16 L70 34Z" fill="#f3cfa9"/><ellipse cx="60" cy="66" rx="31" ry="34" fill="#f6d9b8"/><ellipse cx="60" cy="92" rx="21" ry="15" fill="#fdeedd"/><path d="M40 34 Q60 12 80 34 Q72 30 68 46 Q60 32 52 46 Q48 30 40 34Z" fill="var(--accent)"/><circle cx="47" cy="64" r="6" fill="#3b2a3a"/><circle cx="73" cy="64" r="6" fill="#3b2a3a"/><circle cx="49" cy="62" r="2" fill="#fff"/><circle cx="75" cy="62" r="2" fill="#fff"/><circle cx="38" cy="78" r="6" fill="#ff9ec4" opacity=".6"/><circle cx="82" cy="78" r="6" fill="#ff9ec4" opacity=".6"/><ellipse cx="53" cy="92" rx="2.4" ry="3.2" fill="#c79a78"/><ellipse cx="67" cy="92" rx="2.4" ry="3.2" fill="#c79a78"/><path d="M51 100 Q60 107 69 100" stroke="#8a5a44" stroke-width="2.5" fill="none" stroke-linecap="round"/>' + wearSVG() + '</svg>';
 }
 const mentor = (html, small) => '<div class="mentor' + (small ? ' small' : '') + '">' + mentorSVG() + '<div class="bubble"><b class="nm">' + esc(S.mentor) + ':</b> ' + html + '</div></div>';
 function ring(mini) {
@@ -56,7 +76,7 @@ setInterval(() => {
   const vc = $('#vidclaim'); if (vc && cur && cur.vidT0 && vc.disabled) { const left = cur.vidNeed - Math.floor((Date.now() - cur.vidT0) / 1000); if (left > 0) vc.textContent = 'Kijk nog ' + left + ' seconden…'; else { vc.disabled = false; vc.textContent = '✔ Ik heb gekeken: geef me 3 sterren'; } }
   if (view !== 'practice' || document.hidden || (Date.now() - lastAct > 75000 && Date.now() > vidUntil)) return;
   const d = day(); d.sec++;
-  if (d.sec >= GOAL && !d.euro) { d.euro = true; save(); confetti(['💶', '🎉', '⭐', '🐎']); toast('15 minuten geoefend: je hebt € 1 verdiend! 🎉'); }
+  if (d.sec >= GOAL && !d.euro) { d.euro = true; save(); confetti(['💶', '🎉', '⭐', '🐎']); toast('15 minuten geoefend: je hebt € 1 verdiend! En er wacht een schatkist op je… 🎁'); checkBonuses(); }
   if (d.sec % 5 === 0) save();
   const el = $('#tring'); if (el) el.outerHTML = ring(true);
 }, 1000);
@@ -104,7 +124,7 @@ function answer(ok, why, given) {
     else if (!S.review.some(r => r.skill === q.skill && r.item === q.item)) S.review.push({ skill: q.skill, item: q.item, due: S.qcount + 4 });
     if (!q.revanche) sess.revanche = q.skill;
   }
-  save(); render();
+  save(); if (ok) checkBonuses(); render();
 }
 function parseNum(s) { s = String(s).trim().replace(/\s|€|%/g, ''); if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, ''); s = s.replace(',', '.'); return /^-?\d+(\.\d+)?$/.test(s) ? parseFloat(s) : NaN; }
 const LVL = ['', 'Veulen', 'Pony', 'Kampioen'];
@@ -127,16 +147,18 @@ V.login = () => '<div class="card pinbox">' + mentor('Hé ' + esc(S.name) + '! W
   '<p class="muted">Code vergeten? Vraag papa of mama: zij kunnen hem bij "Ouders" opnieuw instellen.</p><button class="btn ghost sm" data-act="go" data-v="parent">👨‍👩‍👧 Ouders</button></div>';
 
 V.home = () => {
+  checkBonuses();
   const d = dayRO(dkey()), t = tot(d), st = streak(), hr = new Date().getHours(), bal = earned() - paidOut(), left = Math.max(0, Math.ceil((GOAL - d.sec) / 60));
   const hi = hr < 12 ? 'Goedemorgen' : hr < 18 ? 'Hoi' : 'Goedenavond';
   const msg = d.euro ? 'Je euro voor vandaag is binnen! Wil je nog even door, of ga je iets moois kleuren in het atelier?' : t.q ? 'Lekker bezig! Nog ' + left + ' minuten en je euro van vandaag is binnen.' : st > 1 ? 'Al ' + st + ' dagen op rij geoefend. Zullen we er ' + (st + 1) + ' van maken?' : 'Fijn dat je er bent. Vandaag weer een kwartiertje slimmer worden?';
   const lastW = weekStats(-1), isMon = new Date().getDay() === 1;
-  return '<div class="top"><h1>' + esc(S.name) + '\'s Atelier</h1><div class="row"><span class="pill" title="Sterren">⭐ ' + S.stars + '</span><span class="pill" title="Dagen op rij">🔥 ' + st + '</span><span class="pill" title="Spaarpot">💶 € ' + bal + '</span><button class="btn ghost sm" data-act="logout">Uitloggen</button></div></div>' +
-    '<div class="card hero"><div>' + mentor(hi + ' ' + esc(S.name) + '! ' + msg) + '<p style="margin:16px 0 0"><button class="btn big" data-act="start" data-m="mix">▶ Start de training van vandaag</button></p></div>' + ring(false) + '</div>' +
+  return '<div class="top"><h1>' + esc(S.name) + '\'s Atelier</h1><div class="row"><span class="pill" title="Sterren om uit te geven">⭐ ' + sbal() + '</span><span class="pill" title="Dagen op rij">🔥 ' + st + '</span><span class="pill" title="Spaarpot">💶 € ' + bal + '</span><button class="btn ghost sm" data-act="logout">Uitloggen</button></div></div>' +
+    '<div class="card hero"><div>' + mentor(hi + ' ' + esc(S.name) + '! ' + msg) + '<p style="margin:16px 0 0"><button class="btn big" data-act="start" data-m="mix">▶ Start de training van vandaag</button>' + (d.euro && !d.chest ? ' <button class="btn two big" data-act="chest">🎁 Open je schatkist</button>' : '') + '</p></div>' + ring(false) + '</div>' +
     '<div class="card">' + mentor('<span id="joke">' + JOKES[jokeI % JOKES.length] + '</span> <button class="btn ghost sm" data-act="joke" style="margin-left:6px">Nog een grap</button>', true) + '</div>' +
     '<h2>Zelf kiezen wat je oefent</h2><div class="grid" style="margin-bottom:22px">' + Object.keys(SUBJ).map(k => { const ids = Object.keys(SKILLS).filter(s => SKILLS[s].s === k), lv = ids.reduce((a, s) => a + skill(s).lvl, 0) / ids.length; return '<button class="tile" data-act="start" data-m="' + k + '"><span class="ic">' + SUBJ[k].ic + '</span>' + SUBJ[k].n + '<small>niveau ' + lv.toFixed(1).replace('.', ',') + ' van 3</small></button>'; }).join('') + '</div>' +
     '<h2>Mijn plekjes</h2><div class="grid">' +
     '<button class="tile" data-act="start" data-m="fouten"><span class="ic">🧹</span>Foutenstal<small>' + (S.review.length ? S.review.length + ' om op te ruimen' : 'helemaal schoon!') + '</small></button>' +
+    '<button class="tile" data-act="go" data-v="shop"><span class="ic">🎁</span>Beloningswinkel<small>' + (S.coupons.filter(c => !c.used).length ? S.coupons.filter(c => !c.used).length + ' bon(nen) om in te leveren' : 'ruil je sterren in') + '</small></button>' +
     '<button class="tile" data-act="go" data-v="atelier"><span class="ic">🎨</span>Kleur-atelier<small>kleur je eigen paard</small></button>' +
     '<button class="tile" data-act="go" data-v="progress"><span class="ic">📈</span>Mijn voortgang<small>zie hoe je groeit</small></button>' +
     '<button class="tile" data-act="go" data-v="style"><span class="ic">💅</span>Mijn stijl<small>kleuren en plaatjes</small></button>' +
@@ -145,7 +167,7 @@ V.home = () => {
 
 V.practice = () => {
   const q = cur.q, sk = SKILLS[q.skill], su = SUBJ[sk.s];
-  let h = '<div class="top"><button class="btn ghost sm" data-act="stop">⏹ Stoppen</button><div class="row">' + ring(true) + '<span class="pill">⭐ ' + S.stars + '</span><span class="pill">✅ ' + sess.right + ' van ' + sess.n + '</span></div></div><div class="card">';
+  let h = '<div class="top"><button class="btn ghost sm" data-act="stop">⏹ Stoppen</button><div class="row">' + ring(true) + '<span class="pill">⭐ ' + sbal() + '</span><span class="pill">✅ ' + sess.right + ' van ' + sess.n + '</span></div></div><div class="card">';
   h += '<div><span class="chip">' + su.ic + ' ' + su.n + '</span><span class="chip">' + sk.n + '</span>' + (q.rev ? '<span class="chip rev">🧹 uit de Foutenstal</span>' : '') + (q.revanche ? '<span class="chip rev">💪 revanche</span>' : '') + '</div>';
   if (q.context) h += '<div class="context">' + q.context + '</div>';
   h += '<div class="prompt">' + q.prompt + '</div>';
@@ -171,7 +193,7 @@ V.summary = () => {
   return '<div class="card center" style="margin-top:4vh">' + mentor(msg) + '<div class="stats" style="margin:20px 0"><div class="stat"><b>' + sess.n + '</b>vragen</div><div class="stat"><b>' + sess.right + '</b>goed</div><div class="stat"><b>' + m + ' min</b>vandaag</div><div class="stat"><b>' + (d.euro ? '€ 1 ✔' : 'nog ' + Math.max(1, Math.ceil((GOAL - d.sec) / 60)) + ' min') + '</b>' + (d.euro ? 'verdiend' : 'tot je euro') + '</div></div>' +
     (sess.ups.length ? '<p>🌟 <b>Niveau omhoog</b> bij: ' + sess.ups.map(s => SKILLS[s].n).join(', ') + '</p>' : '') +
     (miss.length ? '<p>🧹 <b>Nog even oefenen:</b> ' + miss.map(s => SKILLS[s].n).join(', ') + '. Die komen vanzelf terug.</p>' : '') +
-    '<p class="row" style="justify-content:center"><button class="btn" data-act="go" data-v="home">Naar mijn atelier</button>' + (d.euro ? '' : '<button class="btn two" data-act="start" data-m="mix">Nog even door</button>') + '<button class="btn ghost" data-act="go" data-v="atelier">🎨 Kleuren</button></p>' + (sess.n >= 5 ? '<p><button class="btn two big" data-act="game">🏇 Speel de hindernisbaan</button></p>' : '<p class="muted">Maak minstens 5 vragen, dan mag je de hindernisbaan spelen.</p>') + '</div>';
+    '<p class="row" style="justify-content:center"><button class="btn" data-act="go" data-v="home">Naar mijn atelier</button>' + (d.euro && !d.chest ? '<button class="btn two" data-act="chest">🎁 Open je schatkist</button>' : '') + (d.euro ? '' : '<button class="btn two" data-act="start" data-m="mix">Nog even door</button>') + '<button class="btn ghost" data-act="go" data-v="atelier">🎨 Kleuren</button></p>' + (sess.n >= 5 ? '<p><button class="btn two big" data-act="game">🏇 Speel de hindernisbaan</button></p>' : '<p class="muted">Maak minstens 5 vragen, dan mag je de hindernisbaan spelen.</p>') + '</div>';
 };
 
 function badges() {
@@ -219,6 +241,20 @@ V.atelier = () => { const nx = COLS.find(c => c[0] > S.stars); return head('🎨
   '<div class="cols">' + COLS.map(c => c[0] > S.stars ? '<button class="col-b lock" disabled title="Nog ' + (c[0] - S.stars) + ' sterren">⭐' + c[0] + '</button>' : '<button class="col-b' + (artColor === c[1] ? ' on' : '') + '" data-act="col" data-c="' + c[1] + '" style="background:' + (c[1] === 'rainbow' ? 'linear-gradient(90deg,#ff5f6d,#ffd23f,#7bd88f,#6ec6ff,#a66bff)' : c[1]) + '" aria-label="kleur"></button>').join('') + '</div>' +
   '<div class="easel">' + scene() + '</div><p style="margin:14px 0 0"><button class="btn ghost sm" data-act="artclear">🧽 Opnieuw beginnen</button></p></div>'; };
 
+
+
+/* ===== Beloningswinkel ===== */
+V.shop = () => {
+  const w = weekStats(0), open = S.coupons.filter(c => !c.used), b = sbal();
+  return head('🎁 Beloningswinkel', '<span class="pill">⭐ ' + b + '</span>') +
+    '<div class="card">' + mentor('Met je sterren kun je hier echte beloningen kopen. Een bon lever je in bij papa of mama. Sparen voor iets groots mag ook!', true) + '</div>' +
+    (open.length ? '<div class="card"><h3>🎟 Mijn bonnen</h3><p class="muted">Laat deze zien aan papa of mama om ze in te leveren.</p><div class="grid">' + open.map(c => '<div class="coupon"><b>' + esc(c.t) + '</b>' + (c.val ? '<span>waarde: ' + esc(c.val) + '</span>' : '') + '<small>gekocht op ' + c.d.split('-').reverse().join('-') + '</small></div>').join('') + '</div></div>' : '') +
+    '<div class="card"><h3>🛍 Waardebonnen</h3><div class="grid">' + shop().map((it, i) => '<div class="shopit"><span class="ic">' + esc(it.ic) + '</span><b>' + esc(it.t) + '</b>' + (it.val ? '<span class="muted">waarde: ' + esc(it.val) + '</span>' : '') + '<button class="btn sm" data-act="buy" data-i="' + i + '"' + (b >= it.cost ? '' : ' disabled') + '>' + (b >= it.cost ? 'Koop voor ⭐ ' + it.cost : 'Nog ' + (it.cost - b) + ' ⭐ sparen') + '</button><div class="bar"><i style="width:' + Math.min(100, Math.round(100 * b / it.cost)) + '%"></i></div></div>').join('') + '</div></div>' +
+    '<div class="card"><h3>👗 De kleedkamer van ' + esc(S.mentor) + '</h3><div class="grid">' + ACCS.map(x => { const own = S.acc.includes(x[0]), on = S.wear === x[0]; return '<div class="shopit"><span class="ic">' + x[1] + '</span><b>' + x[2] + '</b><button class="btn sm' + (own ? ' two' : '') + '" data-act="acc" data-k="' + x[0] + '"' + (own || b >= x[3] ? '' : ' disabled') + '>' + (on ? 'Zet af' : own ? 'Zet op' : b >= x[3] ? 'Koop voor ⭐ ' + x[3] : 'Nog ' + (x[3] - b) + ' ⭐') + '</button></div>'; }).join('') + '</div></div>' +
+    '<div class="card"><h3>💶 Extra euro\'s verdienen</h3><div class="skill"><div><b>Dagelijkse euro</b><div class="muted">15 minuten oefenen op een dag</div></div><b>€ 1</b><span>+ 🎁 schatkist</span></div>' +
+    (S.bonus.wa > 0 ? '<div class="skill"><div><b>Weekbonus</b><div class="muted">' + S.bonus.wd + ' dagen in één week je euro halen. Deze week: ' + Math.min(w.eur, S.bonus.wd) + ' van ' + S.bonus.wd + '</div></div><b>€ ' + S.bonus.wa + '</b><div class="bar"><i style="width:' + Math.min(100, 100 * w.eur / S.bonus.wd) + '%"></i></div></div>' : '') +
+    (S.bonus.ka > 0 ? '<div class="skill"><div><b>Kampioenbonus</b><div class="muted">Alle onderdelen van een vak op Kampioen-niveau (🏅🏅🏅)</div></div><b>€ ' + S.bonus.ka + '</b><span>per vak</span></div>' : '') + '</div>';
+};
 
 /* ===== Beloningsspel: de hindernisbaan ===== */
 let G = null;
@@ -310,6 +346,10 @@ V.parent = () => {
   if (rows.length) h += '<div class="card"><h3>Per onderdeel (zwakste bovenaan)</h3><div class="tablewrap"><table><tr><th>Onderdeel</th><th class="n">Vragen</th><th class="n">Goed</th><th>Niveau</th></tr>' + rows.map(k => '<tr><td>' + SKILLS[k].n + ' <span class="muted">(' + SUBJ[SKILLS[k].s].n + ')</span></td><td class="n">' + w.sk[k].q + '</td><td class="n">' + pct(w.sk[k].r, w.sk[k].q) + '%</td><td>' + LVL[skill(k).lvl] + ' (' + skill(k).lvl + '/3)</td></tr>').join('') + '</table></div></div>';
   h += '<div class="card"><h3>💶 Spaarpot</h3><div class="stats"><div class="stat"><b>€ ' + earned() + '</b>totaal verdiend</div><div class="stat"><b>€ ' + paidOut() + '</b>uitbetaald</div><div class="stat"><b>€ ' + bal + '</b>nog te krijgen</div></div><p class="muted">Regel: elke dag met minstens 15 minuten actief oefenen levert € 1 op. De klok loopt alleen als ' + esc(S.name) + ' echt bezig is.</p>' +
     '<p class="noprint"><button class="btn" data-act="payout"' + (bal > 0 ? '' : ' disabled') + '>Markeer € ' + bal + ' als uitbetaald</button></p>' + (S.paid.length ? '<p class="muted">Uitbetaald: ' + S.paid.map(p => '€ ' + p.amt + ' op ' + p.d.split('-').reverse().join('-')).join(' · ') + '</p>' : '') + '</div>' +
+    '<div class="card"><h3>🎁 Beloningen</h3>' + (S.coupons.length ? '<div class="tablewrap"><table><tr><th>Bon</th><th>Waarde</th><th>Gekocht</th><th></th></tr>' + S.coupons.map((c, i) => '<tr><td>' + esc(c.t) + '</td><td>' + esc(c.val || '–') + '</td><td>' + c.d.split('-').reverse().join('-') + '</td><td>' + (c.used ? 'ingeleverd ✔' : '<button class="btn sm noprint" data-act="cused" data-i="' + i + '">Ingeleverd</button>') + '</td></tr>').join('') + '</table></div>' : '<p class="muted">Er zijn nog geen bonnen gekocht.</p>') +
+    (S.blog.length ? '<p class="muted">Bonussen: ' + S.blog.map(b => '€ ' + b.amt + ' ' + esc(b.why) + ' (' + b.d.split('-').reverse().join('-') + ')').join(' · ') + '</p>' : '') +
+    '<div class="noprint"><h4 style="margin-top:16px">Bonussen in euro\'s (0 = uit)</h4><p class="row"><span>Weekbonus: bij</span><input class="inp" style="width:80px" type="number" min="1" max="7" data-bonus="wd" value="' + S.bonus.wd + '"><span>euro-dagen per week krijgt ze € </span><input class="inp" style="width:80px" type="number" min="0" data-bonus="wa" value="' + S.bonus.wa + '"></p><p class="row"><span>Kampioenbonus: een heel vak op niveau 3 levert € </span><input class="inp" style="width:80px" type="number" min="0" data-bonus="ka" value="' + S.bonus.ka + '"><span>op</span></p>' +
+    '<h4 style="margin-top:16px">Waardebonnen in de winkel (pas ze aan naar wat bij jullie past)</h4>' + shop().map((it, i) => '<p class="row shoprow"><input class="inp" style="width:64px" data-shop="' + i + '" data-f="ic" value="' + esc(it.ic) + '" maxlength="4" aria-label="plaatje"><input class="inp wide" data-shop="' + i + '" data-f="t" value="' + esc(it.t) + '" maxlength="50" aria-label="beloning"><span>⭐</span><input class="inp" style="width:95px" type="number" min="1" data-shop="' + i + '" data-f="cost" value="' + it.cost + '" aria-label="prijs in sterren"><input class="inp" style="width:130px" data-shop="' + i + '" data-f="val" value="' + esc(it.val || '') + '" maxlength="20" placeholder="waarde" aria-label="waarde"><button class="btn ghost sm" data-act="shopdel" data-i="' + i + '">✕</button></p>').join('') + '<p><button class="btn ghost sm" data-act="shopadd">+ Beloning toevoegen</button></p></div></div>' +
     '<div class="card noprint"><h3>Beheer</h3><p class="row"><button class="btn two sm" data-act="print">🖨 Rapport afdrukken of als pdf bewaren</button><button class="btn ghost sm" data-act="export">⬇ Reservekopie maken</button><label class="btn ghost sm">⬆ Reservekopie terugzetten<input type="file" accept="application/json" data-import hidden></label></p>' +
     '<form data-form="newpin" class="row"><span>Nieuwe code voor ' + esc(S.name) + ':</span><input class="inp" style="width:130px" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required autocomplete="off"><button class="btn ghost sm">Wijzig</button></form>' +
     '<p style="margin-top:14px"><button class="btn ghost sm" data-act="reset">Alles wissen en opnieuw beginnen</button></p><p class="muted">Alle voortgang staat alleen in deze browser op dit apparaat. Maak af en toe een reservekopie.</p></div>';
@@ -336,6 +376,12 @@ const ACT = {
   flash: () => { cur.phase = 'show'; render(); setTimeout(() => { if (cur && cur.phase === 'show') { cur.phase = 'type'; render(); } }, 3000); },
   vid: () => { const q = cur.q, v = VID[q.v]; cur.vidT0 = Date.now(); cur.vidNeed = Math.min(90, Math.round(v[0] / 2)); vidUntil = Date.now() + v[0] * 1000; $('#vidbox').innerHTML = '<div class="vidframe"><iframe src="https://www.youtube-nocookie.com/embed/' + q.v + '?autoplay=1&rel=0" title="Uitlegfilmpje: ' + v[1] + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div><p style="margin:10px 0 0"><button class="btn two sm" id="vidclaim" data-act="vidclaim" disabled>Kijk nog ' + cur.vidNeed + ' seconden…</button></p>'; },
   vidclaim: () => { const q = cur.q, d = day(); if (cur.vidDone) return; cur.vidDone = true; S.stars += 3; d.vid = d.vid || {}; d.vid[q.skill] = (d.vid[q.skill] || 0) + 1; save(); confetti(['⭐', '🎬', '🌟']); $('#vidclaim').outerHTML = '<b>Knap gedaan! +3 ⭐ Kijk het filmpje gerust af en neem daarna je revanche.</b>'; const b = $('#nextb'); if (b) { b.className = 'btn'; b.textContent = 'Ik snap het! Geef me een revanche 💪'; } },
+  chest: () => { const d = day(); if (!d.euro || d.chest) return; const n = Math.random() < 0.1 ? 25 : U.ri(5, 15); d.chest = n; S.stars += n; save(); confetti(['🎁', '⭐', '💎', '✨']); toast('In de schatkist zaten ' + n + ' sterren!' + (n === 25 ? ' Dat is de jackpot! 💎' : '')); render(); },
+  buy: el => { const it = shop()[+el.dataset.i]; if (!it || sbal() < it.cost || !confirm('"' + it.t + '" kopen voor ' + it.cost + ' sterren?')) return; S.spent += it.cost; S.coupons.push({ t: it.ic + ' ' + it.t, val: it.val, d: dkey(), used: false }); save(); confetti(['🎟', '🎉', '⭐']); toast('Gekocht! Laat je bon zien aan papa of mama.'); render(); },
+  acc: el => { const x = ACCS.find(a => a[0] === el.dataset.k); if (!x) return; if (S.acc.includes(x[0])) S.wear = S.wear === x[0] ? '' : x[0]; else if (sbal() >= x[3]) { S.spent += x[3]; S.acc.push(x[0]); S.wear = x[0]; confetti([x[1], '✨']); } save(); render(); },
+  cused: el => { const c = S.coupons[+el.dataset.i]; if (c) { c.used = dkey(); save(); render(); } },
+  shopdel: el => { shop().splice(+el.dataset.i, 1); save(); render(); },
+  shopadd: () => { shop().push({ ic: '🎁', t: 'Nieuwe beloning', cost: 100, val: '' }); save(); render(); },
   joke: () => { jokeI++; $('#joke').textContent = JOKES[jokeI % JOKES.length]; },
   pal: el => { S.theme.pal = el.dataset.k; S.theme.accent = ''; save(); applyTheme(); if (view === 'setup') { document.querySelectorAll('.sw').forEach(b => b.classList.toggle('on', b === el)); } else render(); },
   noaccent: () => { S.theme.accent = ''; save(); applyTheme(); render(); },
@@ -368,6 +414,8 @@ document.addEventListener('submit', e => { e.preventDefault(); const f = FORM[e.
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.retype != null) { const b = $('#nextb'); if (b) b.disabled = t.value.trim().toLowerCase() !== t.dataset.retype.toLowerCase(); }
+  if (t.dataset.shop != null) { const it = shop()[+t.dataset.shop]; if (it) { it[t.dataset.f] = t.dataset.f === 'cost' ? Math.max(1, Math.round(+t.value) || 1) : t.value; save(); } }
+  if (t.dataset.bonus) { S.bonus[t.dataset.bonus] = Math.max(t.dataset.bonus === 'wd' ? 1 : 0, Math.round(+t.value) || 0); save(); }
   if (t.dataset.bind === 'name') { S.name = t.value.trim() || 'Ster'; save(); }
   if (t.dataset.bind === 'mentor') { S.mentor = t.value.trim() || 'Luna'; save(); }
   if (t.dataset.bind === 'accent') { S.theme.accent = t.value; save(); applyTheme(); }
