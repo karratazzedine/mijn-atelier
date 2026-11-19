@@ -30,7 +30,7 @@ function pickItem(n, ctx) {
 const SUBJ = {
   rek: { n: 'Rekenen', ic: '🧮', w: 0.30 },
   sp: { n: 'Spelling', ic: '✏️', w: 0.17 },
-  ww: { n: 'Werkwoorden', ic: '🏇', w: 0.15 },
+  ww: { n: 'Werkwoorden', ic: '⚡', w: 0.15 },
   taal: { n: 'Taal & ontleden', ic: '🔍', w: 0.13 },
   lez: { n: 'Begrijpend lezen', ic: '📖', w: 0.15 },
   wsch: { n: 'Woordenschat', ic: '💬', w: 0.10 }
@@ -113,7 +113,7 @@ GEN.procBreuk = l => {
 };
 GEN.deelVan = l => {
   const d = U.pick(l === 1 ? [2, 3, 4, 5] : l === 2 ? [4, 5, 8, 10] : [6, 8, 9, 12]), n = d === 2 ? 1 : U.ri(l === 1 ? 1 : 2, d - 1), q = U.ri(2, l === 3 ? 20 : 9), X = d * q, ans = n * q;
-  const ctx = U.pick([null, ['Op de manege staan ' + X + ' paarden. ', ' deel is bruin. Hoeveel paarden zijn bruin?'], ['In de doos zitten ' + X + ' kleurpotloden. ', ' deel heeft al een punt. Hoeveel potloden zijn dat?'], ['Een pony eet ' + X + ' wortels per week. ', ' deel krijgt ze van {naam}. Hoeveel wortels zijn dat?']]);
+  const ctx = U.pick([null, ['Bij de voetbalclub trainen ' + X + ' kinderen. ', ' deel is verdediger. Hoeveel verdedigers zijn er?'], ['In de doos zitten ' + X + ' kleurpotloden. ', ' deel heeft al een punt. Hoeveel potloden zijn dat?'], ['Een kickbokstraining bestaat uit ' + X + ' oefeningen. ', ' deel is traptechniek. Hoeveel oefeningen zijn dat?']]);
   const p = ctx ? ctx[0] + fr(n, d) + ctx[1] : 'Reken uit: ' + fr(n, d) + ' deel van ' + B(X);
   return inq('deelVan', p, ans, {
     steps: 'Eerst delen door de noemer: ' + X + ' : ' + d + ' = ' + q + '. Dat is ' + fr(1, d) + ' deel. Dan keer de teller: ' + n + ' × ' + q + ' = ' + B(ans) + '.',
@@ -136,7 +136,7 @@ GEN.maten = l => {
   });
 };
 GEN.korting = l => {
-  const it = U.pick(['een paar rijlaarzen', 'een schilderset', 'een rijcap', 'een zadeldekje', 'een doos penselen', 'een rijbroek', 'een poetskist', 'een schildersezel']);
+  const it = U.pick(['een paar voetbalschoenen', 'een paar bokshandschoenen', 'een voetbalshirt', 'een set scheenbeschermers', 'een sporttas', 'een trainingspak', 'een bokszak', 'een keepersshirt']);
   let P, pct, K; do { P = U.pick([20, 40, 50, 60, 80, 120, 200]); pct = U.pick(l === 1 ? [10, 20, 25, 50] : [5, 10, 15, 20, 25, 30, 40, 75]); K = P * pct / 100; } while (K !== Math.round(K));
   const N = P - K, kind = l === 1 ? 'bedrag' : l === 2 ? U.pick(['bedrag', 'procent']) : U.pick(['procent', 'nieuw']);
   if (kind === 'bedrag') return inq('korting', U.cap(it) + ' kost € ' + P + '. Je krijgt ' + B(pct + '% korting') + '. Hoeveel euro korting is dat?', K, { pre: '€', steps: '1% van € ' + P + ' is € ' + U.nl(P / 100) + '. ' + pct + '% is dus ' + pct + ' × ' + U.nl(P / 100) + ' = ' + B('€ ' + K) + '.', diagnose: x => x === N ? 'Dat is de nieuwe prijs. De vraag was: hoeveel euro kórting krijg je?' : x === pct ? 'Dat is het percentage. 10% is niet hetzelfde als € 10; je moet het percentage van de prijs nemen.' : null });
@@ -144,7 +144,7 @@ GEN.korting = l => {
   return inq('korting', U.cap(it) + ' kost € ' + P + '. Er gaat ' + pct + '% korting af. Wat is de ' + B('nieuwe prijs') + '?', N, { pre: '€', steps: 'Korting: ' + pct + '% van € ' + P + ' = € ' + K + '. Nieuwe prijs: ' + P + ' − ' + K + ' = ' + B('€ ' + N) + '.', diagnose: x => x === K ? 'Dat is alleen de korting. Trek die nog van de oude prijs af.' : x === P - pct ? 'Je hebt ' + pct + ' euro van de prijs afgehaald, maar het is ' + pct + ' procént. Reken eerst uit hoeveel euro dat is.' : null });
 };
 GEN.rechthoek = l => {
-  const nm = U.pick(['paardenbak', 'wei', 'stal', 'moestuin', 'schildersdoek']), cm = nm === 'schildersdoek';
+  const nm = U.pick(['voetbalveldje', 'trainingsveld', 'boksring', 'sportzaal', 'gymmat']), cm = nm === 'schildersdoek';
   let a = U.ri(l === 1 ? 4 : 12, l === 1 ? 12 : 40), b = U.ri(3, l === 1 ? 9 : 20); if (l === 3) b += 0.5; if (a === b) a += 2;
   const om = 2 * (a + b), op = a * b, ask = U.pick(['omtrek', 'oppervlakte']), u = cm ? 'cm' : 'm';
   return inq('rechthoek', 'Een ' + nm + ' is ' + U.nl(a) + ' ' + u + ' lang en ' + U.nl(b) + ' ' + u + ' breed. Wat is de ' + B(ask) + '?', ask === 'omtrek' ? om : op, {
@@ -158,7 +158,7 @@ GEN.rechthoek = l => {
 GEN.verhouding = l => {
   if (Math.random() < 0.5) {
     const P = U.pick([6, 7.5, 8, 9, 12]), A = U.pick([8, 10, 12, 16]), k = U.ri(2, l === 1 ? 3 : 5), Bm = A * k;
-    return mcq('verhouding', 'Een pot verf kost ' + U.eur(P) + '. Daarmee schilder je ' + A + ' m² staldeur. Hoeveel betaal je voor ' + B(Bm + ' m²') + '?', U.eur(P * k), [
+    return mcq('verhouding', 'Een pot verf kost ' + U.eur(P) + '. Daarmee schilder je ' + A + ' m² clubhuismuur. Hoeveel betaal je voor ' + B(Bm + ' m²') + '?', U.eur(P * k), [
       { t: U.eur(P), why: 'Dat is de prijs van één pot. Voor ' + Bm + ' m² heb je ' + k + ' potten nodig.' },
       { t: U.eur(k), why: k + ' is het áántal potten dat je nodig hebt. Je moet nog keer de prijs van een pot doen.' },
       { t: U.eur(P * (k + 1)), why: 'Je hebt één pot te veel gerekend. ' + Bm + ' : ' + A + ' = ' + k + ' potten.' },
@@ -167,7 +167,7 @@ GEN.verhouding = l => {
   }
   const T = U.pick(l === 1 ? [2, 0.5] : [0.5, 1.5, 2, 2.5]), v = U.pick([8, 10, 12, 14, 16, 20, 30, 60, 90]), D = v * T;
   const tt = T === 0.5 ? 'een half uur' : T === 1.5 ? 'anderhalf uur' : U.nl(T) + ' uur';
-  return mcq('verhouding', (v > 25 ? 'Een paardentrailer rijdt ' : 'Een koets rijdt ') + U.nl(D) + ' km in ' + tt + '. Hoeveel km rijdt die gemiddeld ' + B('per uur') + '?', U.nl(v) + ' km per uur', [
+  return mcq('verhouding', (v > 25 ? 'De spelersbus rijdt ' : 'Een hardloopster loopt ') + U.nl(D) + ' km in ' + tt + '. Hoeveel km is dat gemiddeld ' + B('per uur') + '?', U.nl(v) + ' km per uur', [
     { t: U.nl(D) + ' km per uur', why: 'Dat is de hele afstand. Die werd in ' + tt + ' gereden, niet in precies één uur.' },
     { t: U.nl(D * T) + ' km per uur', why: 'Je hebt vermenigvuldigd. "Per uur" betekent: terugrekenen naar 1 uur.' },
     { t: U.nl(T < 1 ? D / 2 : v * 2) + ' km per uur', why: 'Maak een verhoudingstabel: ' + U.nl(D) + ' km hoort bij ' + U.nl(T) + ' uur. Welke afstand hoort dan bij 1 uur?' },
@@ -225,7 +225,7 @@ GEN.klok = l => {
 GEN.eenOpDe = l => {
   const k = U.pick(l === 1 ? [2, 4, 5] : [3, 4, 5, 8]), place = l === 1 ? 10 : 100, q = U.pick(l === 1 ? [20, 30, 40, 50, 60] : [100, 200, 300, 400]);
   const N = k * q + (Math.random() < 0.5 ? -1 : 1) * U.ri(l === 1 ? 1 : 3, l === 1 ? k * 3 : k * 20), pn = place === 10 ? 'tiental' : 'honderdtal';
-  const c = U.pick([['bezoekers van het museum', 'koopt een poster'], ['kinderen op de ponyclub', 'heeft een eigen pony'], ['leerlingen van de tekenschool', 'schildert het liefst dieren'], ['paarden op de wedstrijd', 'is een schimmel']]);
+  const c = U.pick([['toeschouwers in het stadion', 'koopt een sjaal'], ['kinderen op de voetbalclub', 'is linksbenig'], ['leden van de sportschool', 'doet aan kickboksen'], ['supporters bij de wedstrijd', 'draagt een clubshirt']]);
   return inq('eenOpDe', 'Van de ' + U.nl(N) + ' ' + c[0] + ' geldt: ongeveer ' + B('1 op de ' + k) + ' ' + c[1] + '. Ongeveer hoeveel zijn dat? Rond af op een ' + pn + '.', q, {
     steps: 'Rond ' + U.nl(N) + ' af op een getal dat je makkelijk door ' + k + ' kunt delen: ' + U.nl(k * q) + '. Dan ' + U.nl(k * q) + ' : ' + k + ' = ' + B(q) + '.',
     diagnose: x => x === Math.round(N / place) * place ? 'Je hebt alleen afgerond. "1 op de ' + k + '" betekent dat je ook nog door ' + k + ' moet delen.' : x === Math.round(N / k) ? 'Je hebt heel precies gerekend. Knap, maar de vraag was "ongeveer", afgerond op een ' + pn + '. Schatten gaat veel sneller.' : x === k * q ? 'Dat is het afgeronde totaal. Deel dat nog door ' + k + '.' : null
@@ -245,10 +245,10 @@ GEN.vereenvoudig = l => {
   ], { steps: 'Zoek een getal waar ' + a * m + ' en ' + b * m + ' allebei door te delen zijn: ' + m + '. ' + a * m + ' : ' + m + ' = ' + a + ' en ' + b * m + ' : ' + m + ' = ' + b + '. Dus ' + fr(a, b) + '.' });
 };
 GEN.geld = l => {
-  const it = U.pick(['een borstel', 'een halster', 'een schetsboek', 'een set kwasten', 'een tube verf', 'paardensnoepjes']);
+  const it = U.pick(['een bidon', 'een paar sportsokken', 'een springtouw', 'een bitje', 'een sleutelhanger van de club', 'een zweetbandje']);
   const c = () => U.ri(3, 9) * 100 + U.ri(1, 19) * 5; let P = c(); const two = l === 3; let P2 = two ? c() : 0;
   const paid = (P + P2) > 1000 ? 2000 : U.pick(l === 1 ? [1000] : [1000, 2000]), ans = (paid - P - P2) / 100, e = x => U.eur(x / 100);
-  return inq('geld', two ? '{naam} koopt ' + it + ' van ' + e(P) + ' en een poetsdoek van ' + e(P2) + '. Ze betaalt met ' + e(paid) + '. Hoeveel krijgt ze terug?' : '{naam} koopt ' + it + ' van ' + e(P) + '. Ze betaalt met een briefje van ' + e(paid) + '. Hoeveel krijgt ze terug?', ans, {
+  return inq('geld', two ? '{naam} koopt ' + it + ' van ' + e(P) + ' en een handdoek van ' + e(P2) + '. Ze betaalt met ' + e(paid) + '. Hoeveel krijgt ze terug?' : '{naam} koopt ' + it + ' van ' + e(P) + '. Ze betaalt met een briefje van ' + e(paid) + '. Hoeveel krijgt ze terug?', ans, {
     pre: '€', correctText: e(paid - P - P2).slice(2),
     steps: (two ? 'Samen kost het ' + e(P + P2) + '. ' : '') + 'Tel aan vanaf ' + e(P + P2) + ': eerst naar de hele euro (' + e(Math.ceil((P + P2) / 100) * 100) + '), dat is ' + e(Math.ceil((P + P2) / 100) * 100 - P - P2) + '. Dan naar ' + e(paid) + ', dat is nog ' + e(paid - Math.ceil((P + P2) / 100) * 100) + '. Samen: ' + B(e(paid - P - P2)) + '.',
     diagnose: x => U.near(x, ans + 1) ? 'Je zit precies één euro te hoog. Dat gebeurt als je de euro\'s en de centen apart aftrekt. Tel liever aan: eerst naar de hele euro, dan naar het briefje.' : (two && (U.near(x, (paid - P) / 100) || U.near(x, (paid - P2) / 100))) ? 'Je hebt maar één van de twee spullen afgerekend. Tel eerst alles op wat ze koopt.' : U.near(x, (P + P2) / 100) ? 'Dat is wat het kost. De vraag is hoeveel ze terúgkrijgt.' : null
@@ -461,23 +461,23 @@ GEN.wsch = (l, ctx) => {
 
 /* ===== Mentor-teksten ===== */
 const JOKES = [
-  'Welke paarden zie je nooit in de wei? Zeepaardjes! 🌊',
-  'Wat is wit en galoppeert door de woestijn? Een verdwaalde schimmel!',
-  'Waarom nemen paarden nooit de lift? Ze nemen liever de stap, de draf én de galop.',
-  'Wat zegt de nul tegen de acht? "Mooie riem heb jij om!"',
+  'Waarom is het in een voetbalstadion altijd zo lekker koel? Omdat het vol zit met fans!',
+  'Waarom kan een keeper zo goed sparen? Ze houdt alles tegen!',
+  'Waarom nam de scheidsrechter een woordenboek mee? Voor als iemand buiten-spel-ling ging.',
+  'Wat zegt de ene bokshandschoen tegen de andere? "Samen zijn wij een echte klapper!"',
+  'Wat zegt de nul tegen de acht? "Mooie riem heb jij om! Ben jij soms kampioen?"',
   'Waarom is het rekenboek altijd zo verdrietig? Het zit vol met problemen.',
-  'Welke kwast kan niet schilderen? Een rare kwast! (Zo noem je iemand die een beetje gek doet. Zoals ik.)',
-  'Ik wilde je een grap vertellen over natte verf… maar die moet nog even drogen.',
   'Waarom ging de breuk naar de dokter? Hij voelde zich maar half.',
-  'Wat doet een paard op de computer? Surfen op het hinnik-net!',
-  'Wat is het lievelingsvak van een pony? Hooi-kunde. Daarna pas rekenen.',
-  'Waarom kreeg het potlood een tien? Het had een goede punt gemaakt.',
-  'Wat krijg je als je een eenhoorn kietelt? Glitter-gegiechel. Wetenschappelijk bewezen. Door mij.',
-  'Wat zei het ene penseel tegen het andere? "Pff, ik heb echt een harige dag."',
-  'Waarom zijn kommagetallen zo beleefd? Ze laten altijd een plekje vrij voor de komma.'
+  'Waarom kreeg het potlood een tien? Het had een goede punt gemaakt. Net als jij straks.',
+  'Wat doet een voetbal in de bibliotheek? Een goede voorzet zoeken voor het volgende hoofdstuk.',
+  'Hoe noem je een bal die heel goed kan spellen? Een woord-voetbal. (Oké, dat was een eigen doelpunt.)',
+  'Waarom zijn kommagetallen zo sportief? Ze laten altijd netjes een plekje vrij voor de komma.',
+  'Wat is het lievelingsgetal van een kickbokser? De high-five. Met haar voet.',
+  'Waarom nemen vossen nooit een penalty? Ze zijn veel te sluw: ze laten de keeper eerst duiken.',
+  'Wat eet een kickbokser als ontbijt? Een stevige combinatie: links een boterham, rechts een banaan.'
 ];
-const PRAISE = ['Raak! Dat ging in galop! 🐎', 'Precies goed. Ik wapper met mijn manen van trots!', 'Ja! Jij bent vandaag op dreef.', 'Top gedaan! Mijn baret vloog er bijna af.', 'Helemaal goed! High-hoef! 🙌', 'Kijk jou nou! Weer eentje binnen.', 'Goed zo! Dit is kunst, en jij bent de kunstenaar.', 'Bam, goed! Zo doe je dat.'];
-const OOPS = ['Oeps, net niet. Geeft niks: van fouten word je slimmer dan van goede antwoorden.', 'Deze was een gemene. Kom, we zoeken samen uit waar het misging.', 'Niet goed, wél goed geprobeerd. Even kijken wat er gebeurde.', 'Foutje! Daar ben ik dol op, want nu kan ik je iets leren.', 'Hé, zelfs het beste springpaard tikt weleens een balk aan. Kijk even mee.'];
+const PRAISE = ['Goal! Die zat erin! ⚽', 'Raak! Wat een combinatie! 🥊', 'Precies goed. Dat was een knock-out antwoord!', 'Ja! Jij bent in topvorm vandaag.', 'Helemaal goed! High five! 🙌', 'Scoren maar! Weer eentje binnen.', 'Bam, goed! Zo doet een kampioen dat.', 'Top! De hele tribune juicht voor jou.'];
+const OOPS = ['Net naast. Geeft niks: zelfs de beste spits mist weleens. Kijk even mee naar de herhaling.', 'Deze counter was gemeen. Kom, we zoeken samen uit waar het misging.', 'Niet goed, wél goed geprobeerd. Even de tactiek bekijken.', 'Foutje! Mooi, want van een rematch word je sterker.', 'Hé, elke kampioen heeft eerst duizend keer gemist. Kijk even mee.'];
 
 /* ===== Uitlegfilmpjes van het YouTube-kanaal Wijzer over de Basisschool: id -> [seconden, titel] ===== */
 const VID = {
