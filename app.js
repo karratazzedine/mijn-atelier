@@ -85,6 +85,7 @@ setInterval(() => {
 function start(mode) { sess = { mode, n: 0, right: 0, last: [], lastSubj: null, revanche: null, ups: [], miss: {} }; view = 'practice'; lastAct = Date.now(); nextQ(); }
 function chooseSkill() {
   const all = Object.keys(SKILLS).filter(k => k !== 'sp_eigen' || S.words.length >= 3); let subj = sess.mode;
+  if (SKILLS[sess.mode]) return sess.mode;
   if (sess.mode === 'mix') subj = wpick(Object.keys(SUBJ).filter(k => k !== sess.lastSubj), k => SUBJ[k].w);
   let ids = all.filter(k => SKILLS[k].s === subj && !sess.last.includes(k)); if (!ids.length) ids = all.filter(k => SKILLS[k].s === subj);
   return wpick(ids, k => { const s = skill(k); return 1 + (s.q ? 2 * (1 - s.r / s.q) : 1) + (s.q < 3 ? 1.5 : 0); });
@@ -93,9 +94,11 @@ function pers(q) { const n = esc(S.name || 'Ster'), f = s => typeof s === 'strin
 function nextQ() {
   vidUntil = 0;
   if (sess.mode === 'toets') return toetsNext();
+  if (sess.mode === 'duel') return duelNext();
   let id, item, rev = null, revanche = false;
-  const inMode = s => sess.mode === 'mix' || sess.mode === 'fouten' || SKILLS[s].s === sess.mode;
-  if (sess.revanche) { id = sess.revanche; sess.revanche = null; revanche = true; }
+  const inMode = s => sess.mode === 'mix' || sess.mode === 'fouten' || SKILLS[s].s === sess.mode || s === sess.mode;
+  if (sess.mode === 'baas') { sess.revanche = null; if (sess.right >= 8 || sess.n - sess.right >= 3 || sess.n >= sess.queue.length) return bossEnd(); id = sess.queue[sess.n]; }
+  else if (sess.revanche) { id = sess.revanche; sess.revanche = null; revanche = true; }
   else {
     const pool = S.review.filter(r => SKILLS[r.skill] && inMode(r.skill) && (r.skill !== 'sp_eigen' || S.words.length)), due = pool.filter(r => r.due <= S.qcount);
     if (sess.mode === 'fouten') { if (!pool.length) { sess.cleared = true; view = 'summary'; return render(); } rev = due[0] || pool[0]; }
@@ -110,7 +113,7 @@ function nextQ() {
   render();
 }
 function answer(ok, why, given) {
-  if (cur.done) return; if (sess.mode === 'toets') return toetsAnswer(ok); const q = cur.q;
+  if (cur.done) return; if (sess.mode === 'toets') return toetsAnswer(ok); if (sess.mode === 'duel') return duelAnswer(ok); const q = cur.q;
   Object.assign(cur, { done: true, ok, why, given, praise: U.pick(PRAISE), oops: U.pick(OOPS) });
   const sk = skill(q.skill), d = day(), ds = d.sk[q.skill] || (d.sk[q.skill] = { q: 0, r: 0 });
   ds.q++; sk.q++; sess.n++; S.qcount++;
@@ -125,7 +128,8 @@ function answer(ok, why, given) {
     else if (!S.review.some(r => r.skill === q.skill && r.item === q.item)) S.review.push({ skill: q.skill, item: q.item, due: S.qcount + 4 });
     if (!q.revanche) sess.revanche = q.skill;
   }
-  onAnswer(q, ok); save(); if (ok) checkBonuses(); render();
+  if (ok && !cur.up) cur.xp = maybeExplain(q);
+  onAnswer(q, ok); if (ok) checkBelts(); save(); if (ok) checkBonuses(); render();
 }
 function parseNum(s) { s = String(s).trim().replace(/\s|€|%/g, ''); if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, ''); s = s.replace(',', '.'); return /^-?\d+(\.\d+)?$/.test(s) ? parseFloat(s) : NaN; }
 const LVL = ['', 'Rookie', 'Prof', 'Kampioen'];
@@ -154,9 +158,9 @@ V.home = () => {
   const msg = d.euro ? 'Je euro voor vandaag is binnen! Wil je nog even door, of ga je verder bouwen aan je sportwereld?' : t.q ? 'Lekker bezig! Nog ' + left + ' minuten en je euro van vandaag is binnen.' : st > 1 ? 'Al ' + st + ' dagen op rij geoefend. Zullen we er ' + (st + 1) + ' van maken?' : 'Fijn dat je er bent. Vandaag weer een kwartiertje slimmer worden?';
   const lastW = weekStats(-1), isMon = new Date().getDay() === 1;
   return '<div class="top"><h1>' + esc(S.name) + '\'s Sportwereld</h1><div class="row"><span class="pill" title="Sterren om uit te geven">⭐ ' + sbal() + '</span><span class="pill" title="Bouwstenen voor je wereld">🧱 ' + S.bricks + '</span><span class="pill" title="Dagen op rij">🔥 ' + st + '</span><span class="pill" title="Spaarpot">💶 € ' + bal + '</span><button class="btn ghost sm" data-act="logout">Uitloggen</button></div></div>' +
-    '<div class="card hero"><div>' + mentor(hi + ' ' + esc(S.name) + '! ' + msg) + '<p style="margin:16px 0 0"><button class="btn big" data-act="start" data-m="mix">▶ Start de training van vandaag</button>' + (d.euro && !d.chest ? ' <button class="btn two big" data-act="chest">🎁 Open je schatkist</button>' : '') + '</p></div>' + ring(false) + '</div>' +
+    '<div class="card hero"><div>' + mentor(hi + ' ' + esc(S.name) + '! ' + msg) + '<p style="margin:16px 0 0"><button class="btn big" data-act="start" data-m="mix">▶ Start de training van vandaag</button>' + (d.euro && !d.chest ? ' <button class="btn two big" data-act="chest">🎁 Open je schatkist</button>' : '') + '</p></div>' + ring(false) + '</div>' + briefCard() +
     '<div class="card">' + mentor('<span id="joke">' + JOKES[jokeI % JOKES.length] + '</span> <button class="btn ghost sm" data-act="joke" style="margin-left:6px">Nog een grap</button>', true) + '</div>' +
-    '<h2>Zelf kiezen wat je oefent</h2><div class="grid" style="margin-bottom:22px">' + Object.keys(SUBJ).map(k => { const ids = Object.keys(SKILLS).filter(s => SKILLS[s].s === k), lv = ids.reduce((a, s) => a + skill(s).lvl, 0) / ids.length; return '<button class="tile" data-act="start" data-m="' + k + '"><span class="ic">' + SUBJ[k].ic + '</span>' + SUBJ[k].n + '<small>niveau ' + lv.toFixed(1).replace('.', ',') + ' van 3</small></button>'; }).join('') + '</div>' +
+    '<h2>Zelf kiezen wat je oefent</h2><div class="grid" style="margin-bottom:22px">' + Object.keys(SUBJ).map(k => { const ids = Object.keys(SKILLS).filter(s => SKILLS[s].s === k), lv = ids.reduce((a, s) => a + skill(s).lvl, 0) / ids.length; return '<button class="tile" data-act="start" data-m="' + k + '"><span class="ic">' + SUBJ[k].ic + '</span>' + SUBJ[k].n + '<small>niveau ' + lv.toFixed(1).replace('.', ',') + ' van 3</small><small>' + beltChip(k) + '</small></button>'; }).join('') + '</div>' + extraHome() +
     '<h2>Mijn plekjes</h2><div class="grid">' +
     '<button class="tile" data-act="go" data-v="world"><span class="ic">🏟</span>Mijn sportwereld<small>wereldniveau ' + wlevel() + ' · 🧱 ' + S.bricks + '</small></button>' +
     '<button class="tile" data-act="go" data-v="missions"><span class="ic">🎯</span>Opdrachten<small>' + (S.missions.filter(m => !m.claimed && m.prog >= m.goal).length ? S.missions.filter(m => !m.claimed && m.prog >= m.goal).length + ' beloning(en) klaar!' : S.missions.filter(m => !m.claimed).length + ' opdrachten open') + '</small></button>' +
@@ -169,7 +173,7 @@ V.home = () => {
 
 V.practice = () => {
   const q = cur.q, sk = SKILLS[q.skill], su = SUBJ[sk.s];
-  let h = '<div class="top"><button class="btn ghost sm" data-act="stop">⏹ Stoppen</button><div class="row">' + ring(true) + '<span class="pill">⭐ ' + sbal() + '</span><span class="pill">' + (sess.mode === 'toets' ? '📝 vraag ' + sess.ti + ' van ' + sess.tn : '✅ ' + sess.right + ' van ' + sess.n) + '</span></div></div><div class="card">';
+  let h = '<div class="top"><button class="btn ghost sm" data-act="stop">⏹ Stoppen</button><div class="row">' + ring(true) + '<span class="pill">⭐ ' + sbal() + '</span><span class="pill">' + (sess.mode === 'toets' ? '📝 vraag ' + sess.ti + ' van ' + sess.tn : sess.mode === 'duel' ? '⚔️ vraag ' + (sess.di + 1) + ' van ' + sess.dq.length + ' · beurt: ' + (sess.who ? 'ouder' : esc(S.name)) : '✅ ' + sess.right + ' van ' + sess.n) + '</span></div></div>' + (sess.mode === 'baas' ? bossBar() : '') + '<div class="card">';
   h += '<div><span class="chip">' + su.ic + ' ' + su.n + '</span><span class="chip">' + sk.n + '</span>' + (q.rev ? '<span class="chip rev">🥊 herkansing</span>' : '') + (q.revanche ? '<span class="chip rev">💪 revanche</span>' : '') + '</div>';
   if (q.context) h += '<div class="context">' + q.context + '</div>';
   h += '<div class="prompt">' + q.prompt + '</div>';
@@ -178,7 +182,7 @@ V.practice = () => {
   else if (cur.phase === 'ready') h += '<button class="btn two big" data-act="flash">👀 Laat het woord zien</button>';
   else if (cur.phase === 'show') h += '<div class="flash">' + esc(q.word) + '</div><div class="flashbar"></div>';
   else h += '<form data-form="txt" class="numrow"><input class="inp wide" name="a" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="typ het woord" ' + (cur.done ? 'disabled value="' + esc(cur.given) + '"' : '') + '>' + (cur.done ? '' : '<button class="btn">Controleer</button>') + '</form>';
-  if (cur.done) h += cur.ok ? '<div class="fb good">' + mentor(cur.praise + (cur.up ? ' <b>En… niveau omhoog! Je bent nu ' + LVL[skill(q.skill).lvl] + ' in ' + sk.n + '!</b> 🌟' : '') + (q.rev ? ' Herkansing gewonnen! 🥊' : ''), true) + '<p style="margin:12px 0 0"><button class="btn" data-act="next" id="nextb">Volgende →</button></p></div>'
+  if (cur.done) h += cur.ok ? '<div class="fb good">' + mentor(cur.praise + (cur.up ? ' <b>En… niveau omhoog! Je bent nu ' + LVL[skill(q.skill).lvl] + ' in ' + sk.n + '!</b> 🌟' : '') + (q.rev ? ' Herkansing gewonnen! 🥊' : ''), true) + explainHTML() + '<p style="margin:12px 0 0"><button class="btn" data-act="next" id="nextb">Volgende →</button></p></div>'
     : '<div class="fb bad">' + mentor(cur.oops, true) +
     '<h4>🔎 Waarom ging het mis?</h4><div class="why">' + (cur.why || 'Jouw antwoord was <b>' + esc(cur.given) + '</b>. Loop de stappen hieronder één voor één na en kijk bij welke stap jouw som anders ging.') + '</div>' +
     '<h4>🪄 Zo doe je het</h4><div class="why">' + (q.steps || 'Het goede antwoord is <b>' + q.correctText + '</b>.') + '</div>' +
@@ -208,7 +212,7 @@ V.progress = () => {
   ch = '<div class="chart"><div class="goal" style="bottom:' + (15 / mx * 100 * 0.82 + 12) + '%">15 min = € 1</div>' + ds.map(x => '<div class="col"><i class="' + (x[1] >= 15 ? 'hit' : '') + '" style="height:' + x[1] / mx * 82 + '%"></i>' + x[0] + '</div>').join('') + '</div>';
   const all = Object.values(S.skills).reduce((a, s) => ({ q: a.q + s.q, r: a.r + s.r }), { q: 0, r: 0 });
   return head('📈 Mijn voortgang') + '<div class="card"><div class="stats"><div class="stat"><b>' + all.q + '</b>vragen gemaakt</div><div class="stat"><b>' + pct(all.r, all.q) + '%</b>goed</div><div class="stat"><b>' + streak() + '</b>dagen op rij</div><div class="stat"><b>€ ' + earned() + '</b>verdiend</div></div><h3 style="margin-top:18px">Minuten per dag (laatste 2 weken)</h3>' + ch + '</div>' +
-    '<div class="card"><h3>Mijn medailles</h3><div class="badges">' + badges().map(b => '<div class="badge' + (b[2] ? '' : ' off') + '"><span>' + b[0] + '</span>' + b[1] + '</div>').join('') + '</div></div>' +
+    '<div class="card"><h3>Mijn medailles</h3><div class="badges">' + badges().map(b => '<div class="badge' + (b[2] ? '' : ' off') + '"><span>' + b[0] + '</span>' + b[1] + '</div>').join('') + '</div></div>' + beltCard() +
     Object.keys(SUBJ).map(k => '<div class="card"><h3>' + SUBJ[k].ic + ' ' + SUBJ[k].n + '</h3>' + Object.keys(SKILLS).filter(s => SKILLS[s].s === k).map(s => { const x = skill(s); return '<div class="skill"><div><b>' + SKILLS[s].n + '</b> <a href="' + vidUrl(s) + '" target="_blank" rel="noopener" title="Uitlegfilmpje">🎬</a><div class="muted">' + (x.q ? x.q + ' vragen, ' + pct(x.r, x.q) + '% goed' : 'nog niet geoefend') + '</div></div><div class="bar"><i style="width:' + pct(x.r, x.q) + '%"></i></div>' + lvIcons(x.lvl) + '</div>'; }).join('') + '</div>').join('') +
     '<p class="muted center">🏅 = Rookie · 🏅🏅 = Prof · 🏅🏅🏅 = Kampioen. Vier keer achter elkaar goed? Dan ga je een niveau omhoog.</p>';
 };
@@ -365,8 +369,8 @@ function render() {
 const ACT = {
   go: el => { view = el.dataset.v; if (view !== 'parent') parentOK = false; render(); },
   start: el => start(el.dataset.m),
-  stop: () => { save(); view = 'summary'; render(); },
-  next: () => { if (sess.n - (sess.gameAt || 0) >= 10) { sess.gameAt = sess.n; sess.resume = true; sess.plays = 0; vidUntil = 0; view = 'game'; render(); } else nextQ(); },
+  stop: () => { save(); view = sess.mode === 'duel' ? 'home' : 'summary'; render(); },
+  next: () => { if (sess.mode !== 'baas' && sess.n - (sess.gameAt || 0) >= 10) { sess.gameAt = sess.n; sess.resume = true; sess.plays = 0; vidUntil = 0; view = 'game'; render(); } else nextQ(); },
   game: () => { sess.resume = false; sess.plays = 0; view = 'game'; render(); },
   gameagain: () => render(),
   gamedone: () => { if (sess.resume) { sess.resume = false; view = 'practice'; lastAct = Date.now(); nextQ(); } else { view = 'summary'; render(); } },

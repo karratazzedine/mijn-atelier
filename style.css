@@ -162,3 +162,16 @@ td.n,th.n{text-align:right}
 @keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
 @media(max-width:600px){.hero{grid-template-columns:1fr;justify-items:center}.opts{grid-template-columns:1fr}.mentor svg{width:66px;height:66px}.card{padding:16px;border-radius:22px}}
 @media print{body::before,.noprint,#fx{display:none!important}.card{box-shadow:none;border:1px solid #ccc;break-inside:avoid}body{background:#fff;color:#000}}
+
+/* gordels, baasgevecht, uitlegrol, weekbrief, bezoekers */
+.belt{display:inline-block;width:22px;height:9px;border-radius:3px;border:1.5px solid rgba(0,0,0,.35);margin-right:5px;vertical-align:middle}
+.belt.off{opacity:.18}
+.beltrow{white-space:nowrap}.beltrow .belt{width:14px;margin-right:2px}
+.bossbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--ink);color:var(--card);border-radius:18px;padding:10px 16px;margin-bottom:12px;font-weight:700}
+.xp{margin-top:14px;padding:14px;border-radius:16px;background:var(--soft)}
+.brief{border:3px dashed var(--accent2)}
+.brief p{margin:8px 0}
+.wv{font-size:calc(var(--cs)*.55);animation:wbob 1.6s ease-in-out infinite alternate}
+.wc:nth-child(odd) .wv{animation-delay:-.8s}
+@keyframes wbob{to{bottom:68%}}
+@media (prefers-reduced-motion:reduce){.wv{animation:none}}
