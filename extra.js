@@ -31,7 +31,7 @@ function beltCard() {
 const VIS = ['🏃‍♀️', '🚶‍♀️', '🙋‍♀️', '🧒', '👧', '⛹️‍♀️', '🤾‍♀️', '🧍‍♂️', '🚶‍♂️', '👦'];
 function visitors(sz) {
   const cells = S.world.cells, placed = Object.values(cells).filter(c => c.o), free = [];
-  for (let r = 0; r < sz[1]; r++) for (let c = 0; c < sz[0]; c++) { const k = c + '_' + r; if (!(cells[k] && cells[k].o) && (!cells[k] || cells[k].g !== 'water')) free.push(k); }
+  for (let r = 0; r < sz[1]; r++) for (let c = 0; c < sz[0]; c++) { const k = c + '_' + r; if (!(cells[k] && (cells[k].o || (cells[k].b && cells[k].b.length))) && (!cells[k] || cells[k].g !== 'water')) free.push(k); }
   const pull = placed.filter(c => ['fans', 'trommel', 'stadion', 'friet', 'tent'].includes(c.o)).length;
   const n = Math.min(free.length, 14, Math.floor(placed.length / 2) + 2 * pull + Math.min(streak(), 5) + (wlevel() - 1));
   /* vaste plekken per dag en per bouwstand, zodat ze niet bij elke klik verspringen */

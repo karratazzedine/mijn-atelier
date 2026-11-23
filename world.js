@@ -25,30 +25,75 @@ const reqOK = r => !r || (r.l ? wlevel() >= r.l : r.s ? subjLv(r.s) >= 2 : r.t ?
 const reqTxt = r => r.l ? 'wereldniveau ' + r.l : r.s ? SUBJ[r.s].n + ' gemiddeld op niveau 2' : r.t ? 'maak een toets' : r.st ? r.st + ' dagen op rij trainen' : r.w ? r.w + ' eigen woorden toevoegen' : r.b ? 'win ' + (r.b > 1 ? r.b + ' baasgevechten' : 'een baasgevecht') : r.g ? 'haal een ' + BELTS[r.g][0] + ' band' : '';
 let wtool = { k: 'obj', id: 'bal' }, wcat = 'Voetbal';
 const WV = {}, WACT = {}, WFORM = {};
+/* Bouwblokken: naam, kleur, prijs in bouwstenen, voorwaarde */
+const BLOCKS = { steen: ['Steen', '#a9afbb', 2], hout: ['Hout', '#b9824f', 2], baksteen: ['Baksteen', '#c9543f', 2], grasblok: ['Grasblok', '#6fc25a', 2], zandsteen: ['Zandsteen', '#e8cd8a', 2], wit: ['Wit', '#f6f6f2', 2], zwart: ['Zwart', '#2c2a33', 2], roze: ['Roze', '#f573b0', 3], blauw: ['Blauw', '#3f8cf0', 3], geel: ['Geel', '#ffd23f', 3], paars: ['Paars', '#9b6bf5', 3], glas: ['Glas', 'rgba(150,215,245,.6)', 4, { l: 2 }], goud: ['Goud', '#f2b824', 8, { l: 4 }] };
+const WMAXH = 8, WMAX = [24, 20];
+/* Zelf gekocht land komt bovenop de maat die bij het wereldniveau hoort; bestaande vakken blijven op hun plek */
+const wext = () => S.world.ext || { c: 0, r: 0 };
+const wfull = () => { const b = wsize(wlevel()), e = wext(); return [Math.min(WMAX[0], b[0] + e.c), Math.min(WMAX[1], b[1] + e.r)]; };
+const landCost = () => 25 + 15 * (wext().c + wext().r);
+const wzoom = () => Math.min(2.5, Math.max(0.4, S.world.zoom || 1));
+const bcol = id => (BLOCKS[id] || BLOCKS.steen)[1];
+function wstack(b, inner) {
+  const h = b.length, grad = dir => 'linear-gradient(' + dir + ',' + b.map((id, i) => bcol(id) + ' ' + (100 * i / h).toFixed(2) + '% ' + (100 * (i + 1) / h).toFixed(2) + '%').join(',') + ')';
+  return '<span class="wbf" style="height:calc(var(--bh)*' + h + ');background:' + grad('to bottom') + '"></span><span class="wbr" style="width:calc(var(--bh)*' + h + ');background:' + grad('to right') + '"></span><span class="wbt" style="transform:translateZ(calc(var(--bh)*' + h + '));background:' + bcol(b[h - 1]) + '">' + inner + '</span>';
+}
+/* Opnieuw tekenen zonder dat het beeld verspringt */
+function wrender(f) { const w = $('.wwrap'), x = w ? w.scrollLeft : 0, y = w ? w.scrollTop : 0, py = window.scrollY; render(); const n = $('.wwrap'); if (n) { n.scrollLeft = x * (f || 1); n.scrollTop = y * (f || 1); } window.scrollTo(0, py); }
 
 WV.world = () => {
-  const l = wlevel(), x = xp(), sz = wsize(l), nextAt = WLV[l], cells = S.world.cells, cats = [...new Set(ITEMS.map(i => i[3]))];
-  let grid = ''; const vis = visitors(sz), nvis = Object.keys(vis).length;
-  for (let r = 0; r < sz[1]; r++) for (let c = 0; c < sz[0]; c++) { const k = c + '_' + r, ce = cells[k] || {}, it = ce.o && item(ce.o); grid += '<button class="wc g-' + (ce.g || 'gras') + '" data-act="wcell" data-c="' + k + '" aria-label="vak ' + (c + 1) + ',' + (r + 1) + '">' + (it ? '<span class="wo">' + it[1] + '</span>' : vis[k] ? '<span class="wo wv">' + vis[k] + '</span>' : '') + '</button>'; }
-  const placed = Object.values(cells).filter(c => c.o).length;
+  const l = wlevel(), x = xp(), sz = wfull(), nextAt = WLV[l], cells = S.world.cells, cats = [...new Set(ITEMS.map(i => i[3]))], z = wzoom();
+  const cs = Math.round(Math.max(12, Math.min(54, window.innerWidth * 0.6 / Math.min(sz[0], 10)) * z)), W = sz[0] * (cs + 2) + 10, H = sz[1] * (cs + 2) + 10, dg = (W + H) * 0.7071;
+  let grid = '', nblock = 0, hmax = 1; const vis = visitors(sz), nvis = Object.keys(vis).length;
+  for (let r = 0; r < sz[1]; r++) for (let c = 0; c < sz[0]; c++) {
+    const k = c + '_' + r, ce = cells[k] || {}, it = ce.o && item(ce.o), bl = Array.isArray(ce.b) ? ce.b : [];
+    const top = it ? '<span class="wo">' + it[1] + '</span>' : vis[k] ? '<span class="wo wv">' + vis[k] + '</span>' : '';
+    nblock += bl.length; hmax = Math.max(hmax, bl.length);
+    grid += '<button class="wc g-' + (ce.g || 'gras') + '" data-act="wcell" data-c="' + k + '" aria-label="vak ' + (c + 1) + ',' + (r + 1) + '">' + (bl.length ? wstack(bl, top) : top) + '</button>';
+  }
+  const head0 = Math.round(cs * 0.5 * (hmax + 1) * 0.83 + cs * 1.2);
+  const placed = Object.values(cells).filter(c => c.o).length, maxC = sz[0] >= WMAX[0], maxR = sz[1] >= WMAX[1], lc = landCost();
   return head('🏟 Mijn sportwereld', '<span class="pill" title="Bouwstenen">🧱 ' + S.bricks + '</span>') +
-    '<div class="card"><div class="row sp"><input class="inp wide" data-bind="wname" value="' + esc(S.world.name) + '" maxlength="24" placeholder="Geef je wereld een naam" aria-label="naam van je wereld"><span class="pill">🌍 Wereldniveau ' + l + '</span><span class="pill">' + placed + ' gebouwd</span><span class="pill" title="Hoe meer je bouwt en hoe langer je reeks, hoe drukker het wordt">👥 ' + nvis + ' bezoekers</span></div>' +
-    (nextAt != null ? '<p class="muted" style="margin:10px 0 4px">Nog <b>' + (nextAt - x) + '</b> goede antwoorden en je wereld wordt groter.</p><div class="bar"><i style="width:' + Math.round(100 * (x - WLV[l - 1]) / (nextAt - WLV[l - 1])) + '%"></i></div>' : '<p class="muted">Je wereld heeft de grootste maat bereikt. Wat een bouwer!</p>') +
-    '<div class="wwrap"><div class="wgrid" style="--wc:' + sz[0] + '">' + grid + '</div></div>' +
-    '<p class="muted center">Kies hieronder wat je wilt bouwen en tik dan op een vak. Je verdient 🧱 met goede antwoorden, herkansingen en opdrachten. Hoe meer je bouwt en hoe meer dagen op rij je traint, hoe meer bezoekers er komen kijken.</p></div>' +
-    '<div class="card"><div class="row">' + cats.map(c => '<button class="pick' + (wcat === c ? ' on' : '') + '" data-act="wcat" data-k="' + c + '">' + c + '</button>').join('') + '<button class="pick' + (wcat === 'Grond' ? ' on' : '') + '" data-act="wcat" data-k="Grond">Grond</button><button class="pick' + (wtool.k === 'gum' ? ' on' : '') + '" data-act="wtool" data-k="gum">🧽 Weghalen</button></div><div class="grid" style="margin-top:14px">' +
+    '<div class="card"><div class="row sp"><input class="inp wide" data-bind="wname" value="' + esc(S.world.name) + '" maxlength="24" placeholder="Geef je wereld een naam" aria-label="naam van je wereld"><span class="pill">🌍 Wereldniveau ' + l + '</span><span class="pill">' + sz[0] + ' × ' + sz[1] + ' vakken</span><span class="pill">' + placed + ' gebouwd · ' + nblock + ' blokken</span><span class="pill" title="Hoe meer je bouwt en hoe langer je reeks, hoe drukker het wordt">👥 ' + nvis + ' bezoekers</span></div>' +
+    (nextAt != null ? '<p class="muted" style="margin:10px 0 4px">Nog <b>' + (nextAt - x) + '</b> goede antwoorden en je wereld groeit vanzelf. Je kunt ook zelf land kopen.</p><div class="bar"><i style="width:' + Math.round(100 * (x - WLV[l - 1]) / (nextAt - WLV[l - 1])) + '%"></i></div>' : '') +
+    '<div class="row wtools"><span class="row"><button class="btn ghost sm" data-act="wzoom" data-d="-1" aria-label="uitzoomen">➖</button><b class="wz">' + Math.round(z * 100) + '%</b><button class="btn ghost sm" data-act="wzoom" data-d="1" aria-label="inzoomen">➕</button><button class="btn ghost sm" data-act="wzoom" data-d="0">Passend</button></span>' +
+    '<span class="row"><button class="btn two sm" data-act="wland" data-k="c"' + (maxC ? ' disabled' : '') + '>↔ Strook land erbij' + (maxC ? ' (vol)' : ' · 🧱 ' + lc) + '</button><button class="btn two sm" data-act="wland" data-k="r"' + (maxR ? ' disabled' : '') + '>↕ Strook land erbij' + (maxR ? ' (vol)' : ' · 🧱 ' + lc) + '</button></span></div>' +
+    '<div class="wwrap"><div class="wstage" style="width:' + Math.ceil(dg + 24) + 'px;height:' + Math.ceil(dg * 0.56 + head0 + 30) + 'px"><div class="wgrid" style="--wc:' + sz[0] + ';--cs:' + cs + 'px;top:' + Math.round(head0 + dg * 0.28) + 'px">' + grid + '</div></div></div>' +
+    '<p class="muted center">Kies hieronder wat je wilt bouwen en tik dan op een vak. Met <b>blokken</b> stapel je muren, tribunes en torens, tot ' + WMAXH + ' hoog. Zoomen kan met ➖ en ➕. Hoe meer je bouwt en hoe meer dagen op rij je traint, hoe meer bezoekers er komen kijken.</p></div>' +
+    '<div class="card"><div class="row"><button class="pick' + (wcat === 'Blokken' ? ' on' : '') + '" data-act="wcat" data-k="Blokken">🧊 Blokken</button>' + cats.map(c => '<button class="pick' + (wcat === c ? ' on' : '') + '" data-act="wcat" data-k="' + c + '">' + c + '</button>').join('') + '<button class="pick' + (wcat === 'Grond' ? ' on' : '') + '" data-act="wcat" data-k="Grond">Grond</button><button class="pick' + (wtool.k === 'gum' ? ' on' : '') + '" data-act="wtool" data-k="gum">🧽 Weghalen</button></div><div class="grid" style="margin-top:14px">' +
     (wcat === 'Grond' ? Object.keys(GROUND).map(g => '<button class="shopit witem' + (wtool.k === 'ground' && wtool.id === g ? ' on' : '') + '" data-act="wtool" data-k="ground" data-id="' + g + '"><span class="wsw g-' + g + '"></span><b>' + GROUND[g][0] + '</b><span class="muted">' + (GROUND[g][1] ? '🧱 ' + GROUND[g][1] + ' per vak' : 'gratis') + '</span></button>').join('')
+      : wcat === 'Blokken' ? Object.keys(BLOCKS).map(id => { const B = BLOCKS[id], ok = reqOK(B[3]); return '<button class="shopit witem' + (wtool.k === 'block' && wtool.id === id ? ' on' : '') + (ok ? '' : ' locked') + '" data-act="wtool" data-k="block" data-id="' + id + '"' + (ok ? '' : ' disabled') + '><span class="wsw wcube" style="background:' + B[1] + '"></span><b>' + B[0] + '</b><span class="muted">' + (ok ? '🧱 ' + B[2] + ' per blok' : '🔒 ' + reqTxt(B[3])) + '</span></button>'; }).join('')
       : ITEMS.filter(i => i[3] === wcat).map(i => { const ok = reqOK(i[5]); return '<button class="shopit witem' + (wtool.k === 'obj' && wtool.id === i[0] ? ' on' : '') + (ok ? '' : ' locked') + '" data-act="wtool" data-k="obj" data-id="' + i[0] + '"' + (ok ? '' : ' disabled') + '><span class="ic">' + i[1] + '</span><b>' + i[2] + '</b><span class="muted">' + (ok ? '🧱 ' + i[4] : '🔒 ' + reqTxt(i[5])) + '</span></button>'; }).join('')) + '</div></div>';
 };
-WACT.wcat = el => { wcat = el.dataset.k; if (wtool.k === 'gum') wtool = { k: 'obj', id: '' }; render(); };
-WACT.wtool = el => { wtool = { k: el.dataset.k, id: el.dataset.id || '' }; render(); };
+WACT.wcat = el => { wcat = el.dataset.k; if (wtool.k === 'gum') wtool = { k: 'obj', id: '' }; if (wcat === 'Blokken' && wtool.k !== 'block') wtool = { k: 'block', id: 'steen' }; wrender(); };
+WACT.wtool = el => { wtool = { k: el.dataset.k, id: el.dataset.id || '' }; wrender(); };
+WACT.wzoom = el => { const d = +el.dataset.d, z0 = wzoom(), z = d === 0 ? 1 : Math.min(2.5, Math.max(0.4, Math.round(z0 * (d > 0 ? 1.25 : 0.8) * 100) / 100)); if (z === z0) return; S.world.zoom = z; save(); wrender(z / z0); };
+WACT.wland = el => {
+  const k = el.dataset.k === 'r' ? 'r' : 'c', sz = wfull(), c = landCost();
+  if ((k === 'c' ? sz[0] >= WMAX[0] : sz[1] >= WMAX[1])) return toast('Groter kan je wereld in deze richting niet worden.');
+  if (S.bricks < c) return toast('Een strook land kost 🧱 ' + c + '. Je hebt er nog ' + (c - S.bricks) + ' nodig.');
+  const e = wext(); S.world.ext = { c: e.c + (k === 'c' ? 1 : 0), r: e.r + (k === 'r' ? 1 : 0) }; S.bricks -= c; save(); confetti(['🌱', '🧱', '🏟️']); toast('Je wereld is een strook groter!'); wrender();
+};
 WACT.wcell = el => {
-  const k = el.dataset.c, ce = S.world.cells[k] || (S.world.cells[k] = {});
-  if (wtool.k === 'gum') { if (!ce.o) return toast('Hier staat niets om weg te halen.'); const back = Math.ceil(item(ce.o)[4] / 2); S.bricks += back; delete ce.o; toast('Weggehaald. Je krijgt 🧱 ' + back + ' terug.'); }
+  const k = el.dataset.c, ce = S.world.cells[k] || (S.world.cells[k] = {}), bl = Array.isArray(ce.b) ? ce.b : [];
+  if (wtool.k === 'gum') {
+    if (ce.o) { const back = Math.ceil(item(ce.o)[4] / 2); S.bricks += back; delete ce.o; toast('Weggehaald. Je krijgt 🧱 ' + back + ' terug.'); }
+    else if (bl.length) { bl.pop(); S.bricks += 1; if (!bl.length) delete ce.b; }
+    else return toast('Hier staat niets om weg te halen.');
+  }
+  else if (wtool.k === 'block') {
+    const B = BLOCKS[wtool.id]; if (!B || !reqOK(B[3])) return toast('Kies eerst hieronder een blok.');
+    if (bl.length >= WMAXH) return toast('Hoger dan ' + WMAXH + ' blokken kan niet. Bouw ernaast verder!');
+    if (S.bricks < B[2]) return toast('Je hebt nog 🧱 ' + (B[2] - S.bricks) + ' nodig. Verdien ze met goede antwoorden!');
+    S.bricks -= B[2]; bl.push(wtool.id); ce.b = bl;
+  }
   else if (wtool.k === 'ground') { if ((ce.g || 'gras') === wtool.id) return; const c = GROUND[wtool.id][1]; if (S.bricks < c) return toast('Je hebt nog 🧱 ' + (c - S.bricks) + ' nodig. Verdien ze met goede antwoorden!'); S.bricks -= c; ce.g = wtool.id; }
   else { const it = item(wtool.id); if (!it) return toast('Kies eerst hieronder wat je wilt bouwen.'); if (ce.o) return toast('Hier staat al iets. Haal het eerst weg met 🧽.'); if (!reqOK(it[5])) return; if (S.bricks < it[4]) return toast('Je hebt nog 🧱 ' + (it[4] - S.bricks) + ' nodig. Verdien ze met goede antwoorden!'); S.bricks -= it[4]; ce.o = it[0]; }
-  save(); render();
+  save(); wrender();
 };
+/* Knijpen op het touchpad of Ctrl + scrollen zoomt ook */
+let wzt = 0;
+document.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey) || !e.target.closest || !e.target.closest('.wwrap')) return; e.preventDefault(); if (Date.now() - wzt < 140) return; wzt = Date.now(); WACT.wzoom({ dataset: { d: e.deltaY < 0 ? 1 : -1 } }); }, { passive: false });
 
 /* ===== Opdrachten (missies) ===== */
 const mdone = () => (S.mstat && S.mstat.d === dkey() ? S.mstat.n : 0);
